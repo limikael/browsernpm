@@ -1,0 +1,23 @@
+{
+  "name": "browsernpm",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "jasmine"
+  },
+  "dependencies": {
+    "@gera2ld/tarjs": "^0.3.1",
+    "@isomorphic-git/lightning-fs": "^4.6.0",
+    "indexeddb": "^0.0.0",
+    "semver": "^7.6.0",
+    "url-join": "^5.0.0"
+  },
+  "devDependencies": {
+    "jasmine": "^5.1.0"
+  },
+  "exports": {
+    ".": "./src/browsernpm.js"
+  }
+}

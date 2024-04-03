@@ -1,0 +1,19 @@
+{
+  "name": "basic",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "katnip dev",
+    "dev": "katnip dev",
+    "postinstall": "katnip init"
+  },
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "@isomorphic-git/lightning-fs": "^4.6.0",
+    "katnip-isoq": "^3.0.16"
+  },
+  "exports": {
+    "browser": "src/main/index.jsx"
+  }
+}
