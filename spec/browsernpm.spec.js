@@ -1,10 +1,11 @@
 import {resolveDependencies, installDependencies} from "../src/browsernpm.js";
 import fs from "fs";
-import path from "path";
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 3600*1000;
 
 describe("browsernpm",()=>{
+	it("",()=>{});
+
 	/*it("can resolve deps",async ()=>{
 		let dependencies={
 			"wrangler": "^3.37.0",
@@ -16,7 +17,6 @@ describe("browsernpm",()=>{
 		let res=await resolveDependencies({
 			dependencies: dependencies,
 			fsPromises: fs.promises,
-			path: path,
 			infoCache: "spec/data/info-cache",
 			onProgress: p=>console.log("Info: "+p)
 		});
@@ -28,7 +28,6 @@ describe("browsernpm",()=>{
 		let res=await installDependencies({
 			cwd: "mypackage",
 			fsPromises: fs.promises,
-			path: path,
 			infoCache: "spec/data/info-cache",
 			onProgress: (state,p)=>console.log(state+": "+p)
 		});

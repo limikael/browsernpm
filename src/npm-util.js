@@ -1,6 +1,8 @@
 import semver from "semver";
 import urlJoin from "url-join";
 import {TarReader, TarFileType} from '@gera2ld/tarjs';
+import path from "path-browserify";
+import {mkdirRecursive} from "./fs-util.js";
 
 function semverIntersectsAll(all, range) {
 	for (let allRange of all)
@@ -47,7 +49,7 @@ export async function fetchPackageInfo(packageName) {
 	return await response.json();
 }
 
-export async function downloadPackage({url, cwd, fsPromises, path}) {
+export async function downloadPackage({url, cwd, fsPromises}) {
 	async function fetchTarReader(tarUrl) {
 		let response=await fetch(tarUrl);
 		let pipe=response.body.pipeThrough(new DecompressionStream("gzip"));
@@ -63,7 +65,7 @@ export async function downloadPackage({url, cwd, fsPromises, path}) {
 			//console.log("processing: "+relFn+" type: "+fileInfo.type);
 			let fn=path.join(cwd,relFn);
 			let dirname=path.dirname(fn);
-			await fsPromises.mkdir(dirname,{recursive: true});
+			await mkdirRecursive(fsPromises,dirname);
 			let blob=tarReader.getFileBlob(fileInfo.name);
 			let array=new Uint8Array(await blob.arrayBuffer());
 			await fsPromises.writeFile(fn,array);

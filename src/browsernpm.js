@@ -2,11 +2,11 @@ import NpmRepo from "./NpmRepo.js";
 import NpmPackage from "./NpmPackage.js";
 import {downloadPackage} from "./npm-util.js";
 import {runInParallel} from "./js-util.js";
+import path from "path-browserify";
 
-export async function resolveDependencies({dependencies, fsPromises, path, infoCache, onProgress}) {
+export async function resolveDependencies({dependencies, fsPromises, infoCache, onProgress}) {
 	let npmRepo=new NpmRepo({
 		fsPromises: fsPromises,
-		path: path,
 		infoCache: infoCache
 	});
 
@@ -33,7 +33,7 @@ export async function resolveDependencies({dependencies, fsPromises, path, infoC
 	}
 }
 
-export async function installDependencies({cwd, fsPromises, path, infoCache, onProgress}) {
+export async function installDependencies({cwd, fsPromises, infoCache, onProgress}) {
 	let pkgText=await fsPromises.readFile(path.join(cwd,"package.json"),"utf8");
 	let pkg=JSON.parse(pkgText);
 	if (!onProgress)
@@ -41,7 +41,6 @@ export async function installDependencies({cwd, fsPromises, path, infoCache, onP
 
 	let resolveResult=await resolveDependencies({
 		fsPromises,
-		path,
 		dependencies: pkg.dependencies,
 		//infoCache,
 		onProgress: p=>onProgress("info",p)
@@ -54,7 +53,6 @@ export async function installDependencies({cwd, fsPromises, path, infoCache, onP
 			//console.log("download: "+pkg.name+" to: "+path.join(cwd,pkg.path));
 			await downloadPackage({
 				fsPromises,
-				path,
 				url: pkg.tarball,
 				cwd: path.join(cwd,pkg.path)
 			});

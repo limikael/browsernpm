@@ -2,7 +2,7 @@ import semver from "semver";
 import {semverComputeSets, semverMaxSatisfyingAll} from "./npm-util.js";
 import {arrayRemove} from "./js-util.js";
 import {arrayOnlyUnique} from "./js-util.js";
-//import path from "path";
+import path from "path-browserify";
 
 export default class NpmPackage extends EventTarget {
 	constructor({npmRepo, name, versionSpec}) {
@@ -224,7 +224,7 @@ export default class NpmPackage extends EventTarget {
 		let entries=[];
 
 		if (!this.isRoot()) {
-			installPath=this.npmRepo.path.join(installPath,"node_modules",this.name);
+			installPath=path.join(installPath,"node_modules",this.name);
 			let info=this.npmRepo.getPackageInfoSync(this.name);
 			//console.log(info.versions[this.version]);
 

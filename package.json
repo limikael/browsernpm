@@ -1,6 +1,6 @@
 {
   "name": "browsernpm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "index.js",
   "license": "MIT",
   "type": "module",
@@ -11,6 +11,7 @@
     "@gera2ld/tarjs": "^0.3.1",
     "@isomorphic-git/lightning-fs": "^4.6.0",
     "indexeddb": "^0.0.0",
+    "path-browserify": "^1.0.1",
     "semver": "^7.6.0",
     "url-join": "^5.0.0"
   },

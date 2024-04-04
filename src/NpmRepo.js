@@ -1,12 +1,14 @@
 import {fetchPackageInfo} from "./npm-util.js";
 import {exists} from "./fs-util.js";
 import {ResolvablePromise} from "./js-util.js";
+import path from "path-browserify";
+import {mkdirRecursive} from "./fs-util.js";
 
 export default class NpmRepo {
-	constructor({infoCache, fsPromises, path}) {
+	constructor({infoCache, fsPromises}) {
 		this.fsPromises=fsPromises;
 		this.infoCache=infoCache;
-		this.path=path;
+		//this.path=path;
 		this.packageInfoByName={};
 		this.syncPackageInfoByName={};
 	}
@@ -19,7 +21,7 @@ export default class NpmRepo {
 		this.packageInfoByName[packageName]=promise;
 
 		if (this.infoCache) {
-			let infoJsonPath=this.path.join(this.infoCache,packageName+".json");
+			let infoJsonPath=path.join(this.infoCache,packageName+".json");
 			if (await exists(this.fsPromises,infoJsonPath)) {
 				//console.log("loading...");
 				promise.resolve(JSON.parse(
@@ -31,7 +33,7 @@ export default class NpmRepo {
 				//console.log("fetching and saving...");
 				let info=await fetchPackageInfo(packageName);
 
-				await this.fsPromises.mkdir(this.path.dirname(infoJsonPath),{recursive: true});
+				await mkdirRecursive(this.fsPromises,path.dirname(infoJsonPath));
 				await this.fsPromises.writeFile(infoJsonPath,JSON.stringify(info));
 
 				promise.resolve(info);
