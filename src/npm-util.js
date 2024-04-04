@@ -57,7 +57,7 @@ export async function downloadPackage({url, cwd, fsPromises, path}) {
 
 	let tarReader=await fetchTarReader(url);
 	for (let fileInfo of tarReader.fileInfos) {
-		let relFn=path.relative("package",fileInfo.name);
+		let relFn=path.relative(path.join("/","package"),path.join("/",fileInfo.name));
 
 		if (relFn && fileInfo.type!=TarFileType.Dir) {
 			//console.log("processing: "+relFn+" type: "+fileInfo.type);
