@@ -1,8 +1,12 @@
+export {downloadPackage} from "./npm-util.js";
+
 import NpmRepo from "./NpmRepo.js";
 import NpmPackage from "./NpmPackage.js";
-import {downloadPackage} from "./npm-util.js";
 import {runInParallel} from "./js-util.js";
 import path from "path-browserify";
+import {downloadPackage} from "./npm-util.js";
+
+//export let downloadPackage=downloadPackage;
 
 export async function resolveDependencies({dependencies, fsPromises, infoCache, onProgress}) {
 	let npmRepo=new NpmRepo({
