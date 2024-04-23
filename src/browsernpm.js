@@ -1,5 +1,5 @@
 export {downloadPackage} from "./npm-util.js";
-
+import {exists,mkdirRecursive} from "./fs-util.js";
 import NpmRepo from "./NpmRepo.js";
 import NpmPackage from "./NpmPackage.js";
 import {runInParallel} from "./js-util.js";
@@ -43,10 +43,16 @@ export async function installDependencies({cwd, fsPromises, infoCache, onProgres
 	if (!onProgress)
 		onProgress=()=>{};
 
+	let incompleteFile=path.join(cwd,"node_modules",".INCOMPLETE");
+	if (!await exists(fsPromises,path.dirname(incompleteFile)))
+		await mkdirRecursive(fsPromises,path.dirname(incompleteFile))
+
+	await fsPromises.writeFile(incompleteFile,"");
+
 	let resolveResult=await resolveDependencies({
 		fsPromises,
 		dependencies: pkg.dependencies,
-		//infoCache,
+		infoCache,
 		onProgress: p=>onProgress("info",p)
 	});
 
@@ -64,6 +70,8 @@ export async function installDependencies({cwd, fsPromises, infoCache, onProgres
 	}
 
 	await runInParallel(procs,4,p=>onProgress("install",p));
+	if (await exists(fsPromises,incompleteFile))
+		await fsPromises.unlink(incompleteFile);
 
 	return {
 		success: true,
