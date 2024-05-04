@@ -1,8 +1,8 @@
 import path from "path-browserify";
 
-export async function exists(fsPromises, path) {
+export async function exists(path, {fs}) {
 	try {
-		let stat=await fsPromises.stat(path);
+		let stat=await fs.promises.stat(path);
 		//console.log(stat);
 		return true;
 	} 
@@ -15,7 +15,7 @@ export async function exists(fsPromises, path) {
 	}
 }
 
-export async function mkdirRecursive(fsPromises, dir) {	
+export async function mkdirRecursive(dir, {fs}) {	
 	let start="";
 	if (path.isAbsolute(dir))
 		start=path.sep;
@@ -23,9 +23,9 @@ export async function mkdirRecursive(fsPromises, dir) {
 	let parts=dir.split(path.sep);
 	for (let i=0; i<=parts.length; i++) {
 		let p=path.join(start,...parts.slice(0,i));
-		if (!(await exists(fsPromises,p))) {
+		if (!(await exists(p,{fs}))) {
 			try {
-				await fsPromises.mkdir(p);
+				await fs.promises.mkdir(p);
 			}
 
 			catch (e) {

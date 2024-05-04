@@ -1,9 +1,8 @@
 {
-	"dependencies": {
-		"katnip-twentytwentyfour": "^3.0.29",
-		"preact": "^10.0.0",
-		"fullstack-utils": "^1.0.8",
-		"katnip-isoq": "^3.0.16",
-		"wrangler": "^3.37.0"
-	}
+    "dependencies": {
+        "katnip-isoq": "^3.0.26",
+        "katnip-tailwind": "^3.0.20",
+        "katnip-static": "^3.0.18",
+        "katnip-components": "http://localhost:3000/npm/katnip-components.tgz"
+    }
 }
