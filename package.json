@@ -1,7 +1,6 @@
 {
   "name": "browsernpm",
-  "version": "1.0.5",
-  "main": "index.js",
+  "version": "1.0.6",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -9,8 +8,6 @@
   },
   "dependencies": {
     "@gera2ld/tarjs": "^0.3.1",
-    "@isomorphic-git/lightning-fs": "^4.6.0",
-    "indexeddb": "^0.0.0",
     "minimatch": "^9.0.4",
     "path-browserify": "^1.0.1",
     "semver": "^7.6.0",

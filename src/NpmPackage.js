@@ -34,6 +34,9 @@ export default class NpmPackage extends EventTarget {
 			return;
 		}
 
+		if (this.npmInstaller.ignore.includes(name))
+			return;
+
 		if (this.npmInstaller.overrides[name])
 			versionSpec=this.npmInstaller.overrides[name];
 

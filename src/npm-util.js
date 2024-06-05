@@ -80,9 +80,12 @@ export async function fetchPackageInfo(packageName) {
 	return await response.json();
 }
 
-export async function projectNeedInstall(projectDir, {fs}) {
+export async function projectNeedInstall(projectDir, {fs, ignore}) {
 	/*if (!path.isAbsolute(projectDir))
 		throw new Error("Need absolute project path");*/
+
+	if (!ignore)
+		ignore=[];
 
 	if (await exists(path.join(projectDir,"node_modules",".INCOMPLETE"),{fs}))
 		return true;
@@ -90,17 +93,21 @@ export async function projectNeedInstall(projectDir, {fs}) {
 	let mainPackageJsonPath=path.join(projectDir,"package.json");
 	let mainPackageJson=JSON.parse(await fs.promises.readFile(mainPackageJsonPath,"utf8"));
 	for (let depName in mainPackageJson.dependencies) {
-		let depPackageJsonPath=path.join(projectDir,"node_modules",depName,"package.json");
-		if (!(await exists(depPackageJsonPath,{fs})))
-			return true;
+		if (!ignore.includes(depName)) {
+			let depPackageJsonPath=path.join(projectDir,"node_modules",depName,"package.json");
+			if (!(await exists(depPackageJsonPath,{fs})))
+				return true;
 
-		let depPackageJson=JSON.parse(await fs.promises.readFile(depPackageJsonPath,"utf8"));
-		let currentVersion=depPackageJson.version;
-		let requiredVersion=mainPackageJson.dependencies[depName];
+			let depPackageJson=JSON.parse(await fs.promises.readFile(depPackageJsonPath,"utf8"));
+			let currentVersion=depPackageJson.version;
+			let requiredVersion=mainPackageJson.dependencies[depName];
 
-		if (!semver.satisfies(currentVersion,requiredVersion))
-			return true;
+			if (!semver.satisfies(currentVersion,requiredVersion))
+				return true;
+		}
 	}
+
+	return false;
 }
 
 /*export async function downloadPackage({url, cwd, fsPromises}) {

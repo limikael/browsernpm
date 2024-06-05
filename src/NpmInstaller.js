@@ -6,20 +6,23 @@ import {exists, mkdirRecursive} from "./fs-util.js";
 import {projectNeedInstall} from "./npm-util.js";
 
 /**
- * cwd            - npm project dir
- * override       - {isoq: "https://blabla"} - packages to override
- * infoCache      - info cache dir
- * dependencyKey  - key to use to resolve dependencies
+ * cwd             - npm project dir
+ * override        - {isoq: "https://blabla"} - packages to override
+ * infoCache       - info cache dir
+ * dependenciesKey - key to use to resolve dependencies
+ * full            - install even if existing
+ * ignore          - package names to ignore
+ * quick           - don't install if it seems to be up-to-date
  *
- * keywords       - only install packages with these keywords
- * cleanup        - remove extra packages
- * full           - install even if existing
- * rebuildCache   - don't rely on cache
+ * future:
+ * 
+ * cleanup         - remove extra packages
+ * rebuildCache    - don't rely on cache
  * 
  * Url deps are always reinstalled
  */
 export default class NpmInstaller {
-	constructor({cwd, fs, infoCache, onProgress, full, overrides, dependenciesKey, quick}) {
+	constructor({cwd, fs, infoCache, onProgress, full, overrides, dependenciesKey, quick, ignore}) {
 		this.cwd=cwd;
 		this.fs=fs;
 		this.npmRepo=new NpmRepo({fs, infoCache});
@@ -29,6 +32,10 @@ export default class NpmInstaller {
 		this.overrides=overrides;
 		this.dependenciesKey=dependenciesKey;
 		this.quick=quick;
+		this.ignore=ignore;
+
+		if (!this.ignore)
+			this.ignore=[];
 
 		if (!this.onProgress)
 			this.onProgress=()=>{};
@@ -38,19 +45,25 @@ export default class NpmInstaller {
 	}
 
 	async run() {
+		//console.log("running install...");
 		this.onProgress("info",0);
 
 		let incompleteFile=path.join(this.cwd,"node_modules",".INCOMPLETE");
 		if (await exists(incompleteFile,{fs:this.fs}))
 			this.full=true;
 
+		//console.log("checking need install...");
+		//console.log("need install: "+await projectNeedInstall(this.cwd,{fs:this.fs, ignore: this.ignore}));
+
 		if (this.quick
 				&& !this.full
 				&& !Object.keys(this.overrides).length
-				&& !await projectNeedInstall(this.cwd,{fs:this.fs}))
+				&& !await projectNeedInstall(this.cwd,{fs: this.fs, ignore: this.ignore})) {
+			//console.log("returning.....");
 			return;
+		}
 
-		//console.log("installing..");
+		console.log("installing.....");
 
 		if (!await exists(path.dirname(incompleteFile),{fs:this.fs}))
 			await mkdirRecursive(path.dirname(incompleteFile),{fs:this.fs});
