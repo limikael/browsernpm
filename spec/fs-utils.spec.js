@@ -1,5 +1,5 @@
 import fs from "fs";
-import {mkdirRecursive} from "../src/fs-util.js";
+import {mkdirRecursive} from "../src/utils/fs-util.js";
 
 describe("fsutil",()=>{
 	it("can mkdir recursive",async ()=>{

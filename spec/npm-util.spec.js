@@ -1,4 +1,4 @@
-import {semverComputeSets, semverMaxSatisfyingAll, semverNiceMax} from "../src/npm-util.js";
+import {semverComputeSets, semverMaxSatisfyingAll, semverNiceMax} from "../src/utils/npm-util.js";
 import semver from "semver";
 import fs from "fs";
 import path from "path";
