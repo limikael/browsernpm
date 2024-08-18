@@ -1,0 +1,7 @@
+{
+	"name": "firstpackage",
+	"dependencies": {
+		"firstdep": "^1.0.0",
+		"seconddep": "^2.0.0"
+	}
+}

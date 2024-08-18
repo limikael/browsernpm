@@ -2,7 +2,7 @@ import semver from "semver";
 import urlJoin from "url-join";
 import {TarReader, TarFileType} from '@gera2ld/tarjs';
 import path from "path-browserify";
-import {mkdirRecursive, exists} from "./fs-util.js";
+import {exists} from "./fs-util.js";
 import {arrayOnlyUnique} from "./js-util.js";
 
 export function semverNiceMax(cands) {

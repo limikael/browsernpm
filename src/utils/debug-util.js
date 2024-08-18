@@ -28,7 +28,7 @@ export class DebugFetcher {
 		this.urls.push(url);
 		let u=new URL(url);
 		if (u.protocol!="file:")
-			throw new Error("Expected file url.");
+			throw new Error("Expected file url for debug fetch.");
 
 		return new DebugResponse(await fs.promises.readFile(u.pathname));
 	}

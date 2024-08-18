@@ -1,0 +1,6 @@
+{
+	"name": "testpackage",
+	"dependencies": {
+		"firstpackage": "^1.0.0"
+	}
+}

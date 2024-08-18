@@ -1,0 +1,6 @@
+{
+	"name": "katnip",
+	"dependencies": {
+		"dummydep": "^1.2.3"
+	}
+}

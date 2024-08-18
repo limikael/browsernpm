@@ -15,7 +15,7 @@ export async function exists(path, {fs}) {
 	}
 }
 
-export async function mkdirRecursive(dir, {fs}) {	
+/*export async function mkdirRecursive(dir, {fs}) {	
 	let start="";
 	if (path.isAbsolute(dir))
 		start=path.sep;
@@ -34,4 +34,27 @@ export async function mkdirRecursive(dir, {fs}) {
 			}
 		}
 	}
+}*/
+
+export async function linkRecursive(from, to, {fs}) {
+	let stat=await fs.promises.lstat(from);
+	if (stat.isDirectory()) {
+		await fs.promises.mkdir(to);
+		for (let entry of await fs.promises.readdir(from)) {
+			await linkRecursive(
+				path.join(from,entry),
+				path.join(to,entry),
+				{fs}
+			);
+		}
+
+		return;
+	}
+
+	if (stat.isFile() || stat.isSymbolicLink()) {
+		await fs.promises.link(from,to);
+		return;
+	}
+
+	throw new Error("linkRecursive: Unknown file type");
 }

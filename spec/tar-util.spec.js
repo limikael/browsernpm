@@ -16,7 +16,7 @@ describe("tar-util",()=>{
 
 	it("can fetch a tar reader",async ()=>{
 		let fetch=createDebugFetch();
-		let tarUrl="file://"+path.join(__dirname,"data/katnip-3.0.25.tgz");
+		let tarUrl="file://"+path.join(__dirname,"data/tar-util/katnip-3.0.25.tgz");
 		let tarReader=await fetchTarReader(tarUrl,{fetch});
 		expect(tarReader.fileInfos.length).toEqual(30);
 	});
@@ -26,7 +26,7 @@ describe("tar-util",()=>{
 		await fs.promises.rm(installTo,{recursive: true, force: true});
 
 		let fetch=createDebugFetch();
-		let tarUrl="file://"+path.join(__dirname,"data/katnip-3.0.25.tgz");
+		let tarUrl="file://"+path.join(__dirname,"data/tar-util/katnip-3.0.25.tgz");
 		let tarReader=await fetchTarReader(tarUrl,{fetch});
 		await extractTar({
 			tarReader: tarReader,

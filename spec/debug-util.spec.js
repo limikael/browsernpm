@@ -8,20 +8,20 @@ const __dirname=path.dirname(fileURLToPath(import.meta.url));
 describe("debug-util",()=>{
 	it("can fetch with a class",async ()=>{
 		let fetcher=new DebugFetcher();
-		let url=urlJoin("file://",__dirname,"data/esbuild-info.json");
+		let url=urlJoin("file://",__dirname,"data/debug-util/katnip-3.0.25-info.json");
 
 		let req=await fetcher.fetch(url);
 		let data=await req.json();
-		expect(data.name).toEqual("esbuild");
+		expect(data.name).toEqual("katnip");
 	});
 
 	it("can create a debug fetcher",async ()=>{
 		let fetch=createDebugFetch();
 
-		let url=urlJoin("file://",__dirname,"data/esbuild-info.json");
+		let url=urlJoin("file://",__dirname,"data/debug-util/katnip-3.0.25-info.json");
 		let req=await fetch(url);
 		let data=await req.json();
-		expect(data.name).toEqual("esbuild");
+		expect(data.name).toEqual("katnip");
 		expect(fetch.urls.length).toEqual(1);
 	});
 });

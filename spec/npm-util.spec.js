@@ -5,7 +5,7 @@ import path from "path";
 
 describe("npm-util.js",()=>{
 	it("works",async ()=>{
-		let esbuildInfo=JSON.parse(fs.readFileSync("spec/data/esbuild-info.json","utf8"));
+		let esbuildInfo=JSON.parse(fs.readFileSync("spec/data/npm-util/esbuild-info.json","utf8"));
 		let versions=Object.keys(esbuildInfo.versions);
 		let sets=semverComputeSets(["^0.19.2","^0.19.3","0.17.19"]);
 		let max=sets.map(set=>semverMaxSatisfyingAll(versions,set));

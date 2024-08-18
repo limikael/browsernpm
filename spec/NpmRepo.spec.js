@@ -13,7 +13,7 @@ describe("NpmRepo",()=>{
 		let npmRepo=new NpmRepo({
 			fetch: createDebugFetch(),
 			fs,
-			registryUrl: urlJoin("file://",__dirname,"data/reg-1")
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg")
 		});
 
 		let info=await npmRepo.loadPackageInfo("katnip");
@@ -24,13 +24,13 @@ describe("NpmRepo",()=>{
 	});
 
 	it("loads package info from cache",async ()=>{
-		let infoDir=path.join(__dirname,"tmp/info-cache");
+		let infoDir="tmp/info-cache";
 		await fs.promises.rm(infoDir,{recursive: true, force: true});
 
 		let npmRepo=new NpmRepo({
 			fetch: createDebugFetch(),
 			fs,
-			registryUrl: urlJoin("file://",__dirname,"data/reg-1"),
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
 			infoDir: infoDir
 		});
 
@@ -41,7 +41,7 @@ describe("NpmRepo",()=>{
 		npmRepo=new NpmRepo({
 			fetch: createDebugFetch(),
 			fs,
-			registryUrl: urlJoin("file://",__dirname,"data/reg-1"),
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
 			infoDir: infoDir
 		});
 
@@ -51,15 +51,18 @@ describe("NpmRepo",()=>{
 	});
 
 	it("invalidates the cache",async ()=>{
-		let infoDir=path.join(__dirname,"tmp/info-cache");
+		let infoDir="tmp/info-cache";
 		await fs.promises.rm(infoDir,{recursive: true, force: true});
 		await fs.promises.mkdir(infoDir,{recursive: true});
-		await fs.promises.cp(path.join(__dirname,"data/katnip-3.0.25-info.json"),path.join(infoDir,"katnip"));
+		await fs.promises.cp(
+			path.join(__dirname,"data/NpmRepo-info/katnip-3.0.25-info.json"),
+			path.join(infoDir,"katnip")
+		);
 
 		let npmRepo=new NpmRepo({
 			fetch: createDebugFetch(),
 			fs,
-			registryUrl: urlJoin("file://",__dirname,"data/reg-1"),
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
 			infoDir: infoDir
 		});
 
@@ -72,22 +75,102 @@ describe("NpmRepo",()=>{
 	});
 
 	it("can install a package",async ()=>{
-		let installTo=path.join(__dirname,"/../tmp/katnip-install");
+		let installTo="tmp/katnip-install";
 		await fs.promises.rm(installTo,{recursive: true, force: true});
 
 		let npmRepo=new NpmRepo({
 			fetch: createDebugFetch(),
 			fs,
-			registryUrl: urlJoin("file://",__dirname,"data/reg-1"),
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
 			rewriteTarballUrl: u=>{
 				if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
-					return "file://"+path.join(__dirname,"data/katnip-3.0.25.tgz");
+					return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
+
+				throw new Error("Unexpected tarball url: "+u);
+			}
+		});
+
+		await npmRepo.downloadPackage("katnip","3.0.25",installTo);
+		expect(await exists(path.join(installTo,"package.json"),{fs})).toEqual(true);
+	});
+
+	it("can list cas entries",async ()=>{
+		let casDir=path.join(__dirname,"/../tmp/cas");
+		await fs.promises.rm(casDir,{recursive: true, force: true});
+		await fs.promises.mkdir(casDir,{recursive: true});
+
+		await fs.promises.writeFile(path.join(casDir,"test@1.0.0"),"test");
+		await fs.promises.writeFile(path.join(casDir,"test@1.0.1"),"test");
+		await fs.promises.writeFile(path.join(casDir,"test2@1.0.1"),"test");
+
+		let npmRepo=new NpmRepo({
+			fs: fs,
+			casDir: casDir
+		});
+
+		expect(await npmRepo.getSatisfyingVersion("test","^1.0.0")).toEqual("1.0.1");
+		//console.log(await npmRepo.getCasKeys());
+	});
+
+	it("downloads to cas",async ()=>{
+		let installTo=path.join(__dirname,"/../tmp/cas-katnip-install");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+
+		let casDir=path.join(__dirname,"/../tmp/cas-cas");
+		await fs.promises.rm(casDir,{recursive: true, force: true});
+		let npmRepo=new NpmRepo({
+			casDir: casDir,
+			fetch: createDebugFetch(),
+			fs,
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
+			rewriteTarballUrl: u=>{
+				if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
+					return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
 
 				throw new Error("Unexpected tarball url: "+u);
 			}
 		});
 
 		await npmRepo.install("katnip","3.0.25",installTo);
-		expect(await exists(path.join(installTo,"package.json"),{fs})).toEqual(true);
+
+		let installToAgain=path.join(__dirname,"/../tmp/cas-katnip-install-2");
+		await fs.promises.rm(installToAgain,{recursive: true, force: true});
+
+		await npmRepo.install("katnip","3.0.25",installToAgain);
+		//console.log(npmRepo.fetch.urls);
+		expect(npmRepo.fetch.urls.length).toEqual(2); // one for info, one for download
+	});
+
+	it("can get dependencies via info",async ()=>{
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			fs,
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
+		});
+
+		let ver=await npmRepo.getSatisfyingVersion("katnip","^3.0.27");
+		expect(ver).toEqual("3.0.28");
+
+		let dependencies=await npmRepo.getVersionDependencies("katnip","3.0.28");
+		expect(dependencies.json5).toEqual("^2.2.3");
+	});
+
+	it("can get dependencies via cas",async ()=>{
+		let casDir=path.join(__dirname,"data/NpmRepo-cas");
+
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			casDir: casDir,
+			fs
+		});
+
+		let ver=await npmRepo.getSatisfyingVersion("katnip","^3.0.27");
+		expect(ver).toEqual("3.0.28");
+		let dependencies=await npmRepo.getVersionDependencies("katnip","3.0.28");
+		//console.log(dependencies);
+		expect(dependencies.dummydep).toEqual("^1.2.3");
+
+		let dependencies2=await npmRepo.getVersionDependencies("katnip","3.0.28");
+		expect(dependencies2.dummydep).toEqual("^1.2.3");
 	});
 });
