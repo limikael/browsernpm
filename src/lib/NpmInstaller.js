@@ -4,6 +4,7 @@ import path from "path-browserify";
 import semver from "semver";
 import {semverNiceSatisfies, getInstalledPackagePaths} from "../utils/npm-util.js";
 import {arrayDiff, runInParallel} from "../utils/js-util.js";
+import {exists} from "../utils/fs-util.js";
 
 export default class NpmInstaller {
 	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, 
@@ -30,9 +31,9 @@ export default class NpmInstaller {
 			this.override={};
 
 		this.npmRepo=new NpmRepo({
-			registryUrl, 
-			fetch, 
-			infoDir, 
+			registryUrl,
+			fetch,
+			infoDir,
 			fs,
 			casDir
 		});
@@ -41,6 +42,15 @@ export default class NpmInstaller {
 
 	async run() {
 		let res={success: true};
+
+		let incompleteFile=path.join(this.cwd,"node_modules",".INCOMPLETE");
+		if (await exists(incompleteFile,{fs:this.fs}))
+			this.full=true;
+
+		if (!await exists(path.dirname(incompleteFile),{fs:this.fs}))
+			await this.fs.promises.mkdir(path.dirname(incompleteFile),{resursive:true});
+
+		await this.fs.promises.writeFile(incompleteFile,"");
 
 		await this.loadDependencies();
 
@@ -68,6 +78,8 @@ export default class NpmInstaller {
 
 		if (this.clean)
 			res.removed=await this.cleanUp();
+
+		await this.fs.promises.unlink(incompleteFile);
 
 		res.warnings=[...this.warnings];
 		return res;

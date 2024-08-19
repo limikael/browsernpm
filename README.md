@@ -16,6 +16,5 @@ todo:
  x progress
  x parallel
  x override
-
- - incomplete
+ x incomplete
  - quick
