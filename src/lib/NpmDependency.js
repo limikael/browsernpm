@@ -23,9 +23,11 @@ export default class NpmDependency {
 		return [...this.parent.getDependencyPath(),this.name];
 	}
 
-	async loadDependencies() {
-		if (this.dependencies)
+	async loadDependencies({onProgress}) {
+		if (this.loadStarted)
 			throw new Error("Dependencies already loaded");
+
+		this.loadStarted=true;
 
 		let depPath=this.getDependencyPath();
 		//console.log(depPath);
@@ -39,10 +41,28 @@ export default class NpmDependency {
 				if (!this.npmInstaller.ignore.includes(depName)) {
 					let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
 					this.addDependency(dep);
-					await dep.loadDependencies();
 				}
 			}
 		}
+
+		for (let dep of this.dependencies)
+			await dep.loadDependencies({onProgress});
+
+		onProgress();
+	}
+
+	getLoadDependenciesPercent() {
+		if (!this.loadStarted)
+			return 0;
+
+		if (!this.dependencies.length)
+			return 100;
+
+		let totalPercent=0;
+		for (let dep of this.dependencies)
+			totalPercent+=dep.getLoadDependenciesPercent();
+
+		return totalPercent/this.dependencies.length;
 	}
 
 	addDependency(dependency) {

@@ -246,7 +246,7 @@ export default class NpmRepo {
 			});
 		}
 
-		await this.fs.promises.rm(target,{recursive: true, force: true});
+		//await this.fs.promises.rm(target,{recursive: true, force: true});
 		await extractTar({
 			tarReader: tarReader,
 			archiveRoot: "package",
@@ -287,8 +287,8 @@ export default class NpmRepo {
 				await this.casDownloadPromises[casKey];
 
 			// Install from CAS
-			await this.fs.promises.mkdir(path.dirname(target),{recursive: true});
-			await this.fs.promises.rm(target,{recursive: true, force: true});
+			//await this.fs.promises.mkdir(path.dirname(target),{recursive: true});
+			//await this.fs.promises.rm(target,{recursive: true, force: true});
 			await linkRecursive(casPackagePath,target,{fs:this.fs});
 		}
 

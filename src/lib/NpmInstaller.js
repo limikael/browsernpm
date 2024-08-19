@@ -3,16 +3,19 @@ import NpmDependency from "./NpmDependency.js";
 import path from "path-browserify";
 import semver from "semver";
 import {semverNiceSatisfies, getInstalledPackagePaths} from "../utils/npm-util.js";
-import {arrayDiff} from "../utils/js-util.js";
+import {arrayDiff, runInParallel} from "../utils/js-util.js";
 
 export default class NpmInstaller {
-	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, ignore, full, clean}) {
+	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, 
+			ignore, full, clean, override, onProgress}) {
 		this.cwd=cwd;
 		this.fs=fs;
 		this.dedupe=dedupe;
 		this.ignore=ignore;
 		this.full=full;
 		this.clean=clean;
+		this.onProgress=onProgress;
+		this.override=override;
 
 		if (this.dedupe===undefined)
 			this.dedupe=true;
@@ -22,6 +25,9 @@ export default class NpmInstaller {
 
 		if (this.clean===undefined)
 			this.clean=true;
+
+		if (!this.override)
+			this.override={};
 
 		this.npmRepo=new NpmRepo({
 			registryUrl, 
@@ -45,11 +51,20 @@ export default class NpmInstaller {
 			}
 		}
 
+		let jobs=[];
 		for (let dependency of this.getAllDependencies()) {
 			if (this.full ||
 					!await dependency.isInstalled())
-				await dependency.install();
+				jobs.push(async ()=>await dependency.install());
 		}
+
+		if (jobs.length && this.onProgress)
+			this.onProgress("install",0);
+
+		await runInParallel(jobs,4,progress=>{
+			if (this.onProgress)
+				this.onProgress("install",progress);
+		});
 
 		if (this.clean)
 			res.removed=await this.cleanUp();
@@ -77,6 +92,9 @@ export default class NpmInstaller {
 		if (this.ignore.includes(name))
 			throw new Error("Trying to create ignored dep: "+name);
 
+		if (this.override[name])
+			versionSpec=this.override[name];
+
 		let dependency=new NpmDependency({
 			npmInstaller: this,
 			name,
@@ -101,9 +119,33 @@ export default class NpmInstaller {
 			if (!this.ignore.includes(depName)) {
 				let dep=await this.createDependency(depName,deps[depName]);
 				this.addDependency(dep);
-				await dep.loadDependencies();
 			}
 		}
+
+		let oldReported;
+		let handleProgress=()=>{
+			let percent=this.getLoadDependenciesPercent();
+			if (this.onProgress && (percent!=oldReported))
+				this.onProgress("info",percent);
+
+			oldReported=percent
+		}
+
+		for (let dep of this.dependencies)
+			await dep.loadDependencies({onProgress: handleProgress});
+
+		handleProgress();
+	}
+
+	getLoadDependenciesPercent() {
+		if (!this.dependencies.length)
+			return 100;
+
+		let totalPercent=0;
+		for (let dep of this.dependencies)
+			totalPercent+=dep.getLoadDependenciesPercent();
+
+		return Math.round(totalPercent/this.dependencies.length);
 	}
 
 	addDependency(dependency) {

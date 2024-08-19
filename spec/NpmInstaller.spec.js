@@ -27,12 +27,18 @@ describe("NpmInstaller",()=>{
 		await fs.promises.rm(installTo,{recursive: true, force: true});
 		await fs.promises.cp(installFrom,installTo,{recursive: true});
 
+		let progress=[];
+		function handleProgress(state, percent) {
+			progress.push({state, percent});
+		}
+
 		let npmInstaller=new NpmInstaller({
 			cwd: installTo,
 			fetch: createDebugFetch(),
 			fs: fs,
 			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
-			dedupe: false
+			dedupe: false,
+			onProgress: handleProgress
 		});
 
 		await npmInstaller.run();
@@ -40,6 +46,9 @@ describe("NpmInstaller",()=>{
 		expect(await exists(path.join(installTo,"node_modules/firstpackage"),{fs:fs})).toEqual(true);
 		expect(await exists(path.join(installTo,"node_modules/firstpackage/"),{fs:fs})).toEqual(true);
 		expect(await exists(path.join(installTo,"node_modules/firstpackage/node_modules/firstdep/node_modules/firstsubdep/package.json"),{fs:fs})).toEqual(true);
+
+		//console.log(progress);
+		expect(progress.length).toBeGreaterThan(2);
 	});
 
 	it("can install with hoisting",async ()=>{
@@ -209,6 +218,33 @@ describe("NpmInstaller",()=>{
 		let res=await npmInstaller2.run();
 
 		expect(await exists("tmp/installed-cleanup/node_modules/firstsubdep",{fs:fs})).toEqual(false);
-		expect(res.removed).toEqual(1);
+		expect(res.removed).toEqual(2);
+	});
+
+	it("cleans up",async ()=>{
+		let installTo=path.join("tmp/installed-override");
+		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+		await fs.promises.cp(installFrom,installTo,{recursive: true});
+
+		let casDir=path.join("tmp/override-cas");
+		await fs.promises.rm(casDir, {recursive: true, force: true});
+		await fs.promises.cp(
+			path.join(__dirname,"data/NpmInstaller/cas"),
+			casDir,
+			{recursive: true}
+		);
+
+		let npmInstaller=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			casDir: casDir,
+			override: {
+				seconddep: urlJoin("file://",__dirname,"data/NpmRepo-tar/@user+package-1.0.1.tgz")
+			}
+		});
+
+		await npmInstaller.run();
 	});
 })

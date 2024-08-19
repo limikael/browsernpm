@@ -39,7 +39,7 @@ export async function exists(path, {fs}) {
 export async function linkRecursive(from, to, {fs}) {
 	let stat=await fs.promises.lstat(from);
 	if (stat.isDirectory()) {
-		await fs.promises.mkdir(to);
+		await fs.promises.mkdir(to,{recursive: true});
 		for (let entry of await fs.promises.readdir(from)) {
 			await linkRecursive(
 				path.join(from,entry),
@@ -52,6 +52,9 @@ export async function linkRecursive(from, to, {fs}) {
 	}
 
 	if (stat.isFile() || stat.isSymbolicLink()) {
+		if (await exists(to,{fs:fs}))
+			await fs.promises.unlink(to);
+
 		await fs.promises.link(from,to);
 		return;
 	}

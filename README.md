@@ -13,8 +13,9 @@ todo:
  x ignore
  x full
  x clean
+ x progress
+ x parallel
+ x override
 
- - progress
  - incomplete
  - quick
- - override
