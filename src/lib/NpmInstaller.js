@@ -14,6 +14,7 @@ export default class NpmInstaller {
 			rewriteTarballUrl, 
 			casDir
 		});
+		this.warnings=[];
 	}
 
 	async createDependency(name, versionSpec) {
@@ -40,12 +41,12 @@ export default class NpmInstaller {
 		for (let depName in deps) {
 			let dep=await this.createDependency(depName,deps[depName]);
 			this.addDependency(dep);
+			await dep.loadDependencies();
 		}
 	}
 
 	addDependency(dependency) {
-		dependency.parent=null;
-		this.dependencies.push(dependency);
+		dependency.setParent(this);
 	}
 
 	getAllDependencies() {
@@ -61,5 +62,9 @@ export default class NpmInstaller {
 
 		for (let dependency of this.getAllDependencies())
 			await dependency.install();
+	}
+
+	getInstallPath() {
+		return this.cwd;
 	}
 }

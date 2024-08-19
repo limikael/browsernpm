@@ -1,7 +1,0 @@
-{
-	"dependencies": {
-	    "katnip": "https://github.com/limikael/katnip/archive/refs/heads/master.tar.gz",
-	    "katnip-isoq": "^3.0.0",
-	    "katnip-cloudflare": "^3.0.0"
-	}
-}

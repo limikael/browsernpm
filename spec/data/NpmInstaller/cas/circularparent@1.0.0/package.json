@@ -1,0 +1,6 @@
+{
+	"name": "circularparent",
+	"dependencies": {
+		"circularmiddle": "^1.0.0"
+	}
+}

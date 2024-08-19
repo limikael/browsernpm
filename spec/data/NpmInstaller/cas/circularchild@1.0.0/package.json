@@ -1,0 +1,6 @@
+{
+	"name": "circularchild",
+	"dependencies": {
+		"circularparent": "^1.0.0"
+	}
+}

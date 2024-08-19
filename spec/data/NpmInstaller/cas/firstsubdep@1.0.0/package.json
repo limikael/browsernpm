@@ -1,3 +1,6 @@
 {
-	"name": "firstsubdep"
+	"name": "firstsubdep",
+	"dependencies": {
+		"seconddep": "2.0.0"
+	}
 }

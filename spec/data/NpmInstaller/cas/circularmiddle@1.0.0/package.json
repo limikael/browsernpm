@@ -1,0 +1,6 @@
+{
+	"name": "circularmiddle",
+	"dependencies": {
+		"circularchild": "^1.0.0"
+	}
+}
