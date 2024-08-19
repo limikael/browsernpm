@@ -50,7 +50,6 @@ export default class NpmInstaller {
 			this.full=true;
 		}
 
-		// untested...
 		if (this.quick
 				&& !this.full
 				&& !Object.keys(this.override).length
