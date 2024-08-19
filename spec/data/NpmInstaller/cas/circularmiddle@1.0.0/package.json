@@ -1,5 +1,6 @@
 {
 	"name": "circularmiddle",
+	"__installedVersion": "1.0.0",
 	"dependencies": {
 		"circularchild": "^1.0.0"
 	}

@@ -23,6 +23,39 @@ describe("NpmRepo",()=>{
 		expect(ver).toEqual("3.0.28");
 	});
 
+	it("doesn't load package info for url deps",async ()=>{
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			fs,
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg")
+		});
+
+		let ver=await npmRepo.getSatisfyingVersion("katnip","https://github/bla");
+		expect(ver).toEqual("https://github/bla");
+	});
+
+	it("can load package info with @user/package",async ()=>{
+		let infoDir="tmp/info-cache2";
+		await fs.promises.rm(infoDir,{recursive: true, force: true});
+
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			fs,
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
+			infoDir: infoDir
+		});
+
+		let info=await npmRepo.loadPackageInfo("@user/package");
+		let ver=await npmRepo.getSatisfyingVersion("@user/package","^1.0.0");
+		expect(ver).toEqual("1.0.1");
+
+		expect(await exists(path.join(infoDir,"@user+package"),{fs:fs})).toEqual(true);
+
+		let deps=await npmRepo.getVersionDependencies("@user/package","1.0.1");
+		//console.log(deps);
+		expect(deps.firstpackage).toEqual("^1.0.0");
+	});
+
 	it("loads package info from cache",async ()=>{
 		let infoDir="tmp/info-cache";
 		await fs.promises.rm(infoDir,{recursive: true, force: true});
@@ -79,15 +112,16 @@ describe("NpmRepo",()=>{
 		await fs.promises.rm(installTo,{recursive: true, force: true});
 
 		let npmRepo=new NpmRepo({
-			fetch: createDebugFetch(),
+			fetch: createDebugFetch({
+				rewrite: u=>{
+					if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
+						return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
+
+					return u;
+				}
+			}),
 			fs,
 			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
-			rewriteTarballUrl: u=>{
-				if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
-					return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
-
-				throw new Error("Unexpected tarball url: "+u);
-			}
 		});
 
 		await npmRepo.downloadPackage("katnip","3.0.25",installTo);
@@ -120,25 +154,34 @@ describe("NpmRepo",()=>{
 		await fs.promises.rm(casDir,{recursive: true, force: true});
 		let npmRepo=new NpmRepo({
 			casDir: casDir,
-			fetch: createDebugFetch(),
+			fetch: createDebugFetch({
+				rewrite: u=>{
+					if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
+						return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
+
+					if (u.includes("$REG") && u.includes("@user/package/-/package-1.0.1.tgz")) {
+						u=u.replace("$REG","file://"+path.join(__dirname,"data/NpmRepo-tar"));
+						u=u.replace("@user/package/-/package-1.0.1.tgz","@user+package-1.0.1.tgz");
+						return u;
+					}
+
+					return u;
+				}
+			}),
 			fs,
 			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
-			rewriteTarballUrl: u=>{
-				if (u=="https://registry.npmjs.org/katnip/-/katnip-3.0.25.tgz")
-					return "file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
-
-				throw new Error("Unexpected tarball url: "+u);
-			}
 		});
 
-		await npmRepo.install("katnip","3.0.25",installTo);
+		await npmRepo.install("katnip","3.0.25",path.join(installTo,"katnip"));
+		await npmRepo.install("@user/package","1.0.1",path.join(installTo,"@user/package"));
 
 		let installToAgain=path.join(__dirname,"/../tmp/cas-katnip-install-2");
 		await fs.promises.rm(installToAgain,{recursive: true, force: true});
 
-		await npmRepo.install("katnip","3.0.25",installToAgain);
+		await npmRepo.install("katnip","3.0.25",path.join(installToAgain,"katnip"));
+		await npmRepo.install("@user/package","1.0.1",path.join(installToAgain,"@user/package"));
 		//console.log(npmRepo.fetch.urls);
-		expect(npmRepo.fetch.urls.length).toEqual(2); // one for info, one for download
+		expect(npmRepo.fetch.urls.length).toEqual(4); // one for info, one for download for each of 2 pkgs
 	});
 
 	it("can get dependencies via info",async ()=>{
@@ -152,6 +195,18 @@ describe("NpmRepo",()=>{
 		expect(ver).toEqual("3.0.28");
 
 		let dependencies=await npmRepo.getVersionDependencies("katnip","3.0.28");
+		expect(dependencies.json5).toEqual("^2.2.3");
+	});
+
+	it("can get dependencies via url",async ()=>{
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			fs,
+			registryUrl: urlJoin("file://",__dirname,"data/NpmRepo-reg"),
+		});
+
+		let u="file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
+		let dependencies=await npmRepo.getVersionDependencies("katnip",u);
 		expect(dependencies.json5).toEqual("^2.2.3");
 	});
 

@@ -1,5 +1,6 @@
 {
 	"name": "circularparent",
+	"__installedVersion": "1.0.0",
 	"dependencies": {
 		"circularmiddle": "^1.0.0"
 	}

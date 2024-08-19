@@ -1,0 +1,21 @@
+{
+	"name": "@user/package",
+	"versions": {
+		"1.0.0": {
+			"dist": {
+				"tarball": "$REG/@user/package/-/package-1.0.0.tgz"
+			},
+			"dependencies": {
+				"firstpackage": "^1.0.0"
+			}
+		},
+		"1.0.1": {
+			"dist": {
+				"tarball": "$REG/@user/package/-/package-1.0.1.tgz"
+			},
+			"dependencies": {
+				"firstpackage": "^1.0.0"
+			}
+		}
+	}
+}

@@ -1,5 +1,6 @@
 {
 	"name": "firstsubdep",
+	"__installedVersion": "1.0.0",
 	"dependencies": {
 		"seconddep": "2.0.0"
 	}

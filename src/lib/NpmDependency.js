@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import {exists} from "../utils/fs-util.js";
 
 export default class NpmDependency {
 	constructor({npmInstaller, name, versionSpec}) {
@@ -10,6 +11,8 @@ export default class NpmDependency {
 
 	async init() {
 		this.resolvedVersion=await this.npmRepo.getSatisfyingVersion(this.name,this.versionSpec);
+		//console.log("resolved: "+this.resolvedVersion);
+
 		this.dependencySpecs=await this.npmRepo.getVersionDependencies(this.name,this.resolvedVersion);
 	}
 
@@ -33,9 +36,11 @@ export default class NpmDependency {
 			}
 
 			else {
-				let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
-				this.addDependency(dep);
-				await dep.loadDependencies();
+				if (!this.npmInstaller.ignore.includes(depName)) {
+					let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
+					this.addDependency(dep);
+					await dep.loadDependencies();
+				}
 			}
 		}
 	}
@@ -95,5 +100,22 @@ export default class NpmDependency {
 			dep.setParent();
 
 		this.setParent(this.npmInstaller);
+	}
+
+	async isInstalled() {
+		let fs=this.npmInstaller.fs;
+		if (!await exists(this.getInstallPath(),{fs:fs}) ||
+				!await exists(path.join(this.getInstallPath(),"package.json"),{fs:fs}))
+			return false;
+
+		let pkgPath=path.join(this.getInstallPath(),"package.json");
+		let pkgText=await fs.promises.readFile(pkgPath,"utf8");
+		let pkg=JSON.parse(pkgText);
+		//console.log(pkg);
+
+		if (pkg.__installedVersion==this.resolvedVersion)
+			return true;
+
+		return false;
 	}
 }

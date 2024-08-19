@@ -92,3 +92,15 @@ export async function runInParallel(processes, concurrencyLimit, onProgress) {
 
 	return Promise.all(all);
 }
+
+export function isValidUrl(cand) {
+	try {
+		let u=new URL(cand);
+	}
+
+	catch (e) {
+		return;
+	}
+
+	return true;
+}

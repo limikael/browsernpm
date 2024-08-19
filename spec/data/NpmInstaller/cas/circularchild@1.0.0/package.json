@@ -1,5 +1,6 @@
 {
 	"name": "circularchild",
+	"__installedVersion": "1.0.0",
 	"dependencies": {
 		"circularparent": "^1.0.0"
 	}

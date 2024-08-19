@@ -2,21 +2,31 @@ import NpmRepo from "./NpmRepo.js";
 import NpmDependency from "./NpmDependency.js";
 import path from "path-browserify";
 import semver from "semver";
+import {semverNiceSatisfies} from "../utils/npm-util.js";
 
 export default class NpmInstaller {
-	constructor({cwd, registryUrl, fetch, infoDir, fs, rewriteTarballUrl, casDir, dedupe}) {
+	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, ignore, full, clean}) {
 		this.cwd=cwd;
 		this.fs=fs;
 		this.dedupe=dedupe;
+		this.ignore=ignore;
+		this.full=full;
+		this.clean=clean;
+
 		if (this.dedupe===undefined)
 			this.dedupe=true;
+
+		if (!this.ignore)
+			this.ignore=[];
+
+		if (this.clean===undefined)
+			this.clean=true;
 
 		this.npmRepo=new NpmRepo({
 			registryUrl, 
 			fetch, 
 			infoDir, 
 			fs,
-			rewriteTarballUrl, 
 			casDir
 		});
 		this.warnings=[];
@@ -32,11 +42,24 @@ export default class NpmInstaller {
 			}
 		}
 
-		for (let dependency of this.getAllDependencies())
-			await dependency.install();
+		for (let dependency of this.getAllDependencies()) {
+			if (this.full ||
+					!await dependency.isInstalled())
+				await dependency.install();
+		}
+
+		if (this.clean)
+			await this.cleanUp();
+	}
+
+	async cleanUp() {
+		
 	}
 
 	async createDependency(name, versionSpec) {
+		if (this.ignore.includes(name))
+			throw new Error("Trying to create ignored dep: "+name);
+
 		let dependency=new NpmDependency({
 			npmInstaller: this,
 			name,
@@ -58,9 +81,11 @@ export default class NpmInstaller {
 			deps={};
 
 		for (let depName in deps) {
-			let dep=await this.createDependency(depName,deps[depName]);
-			this.addDependency(dep);
-			await dep.loadDependencies();
+			if (!this.ignore.includes(depName)) {
+				let dep=await this.createDependency(depName,deps[depName]);
+				this.addDependency(dep);
+				await dep.loadDependencies();
+			}
 		}
 	}
 
@@ -100,8 +125,11 @@ export default class NpmInstaller {
 
 		for (let dep of this.getAllDependencies())
 			if (dep.name==name &&
-					semver.satisfies(version,dep.versionSpec))
+					semverNiceSatisfies(version,dep.versionSpec))
 				count++;
+
+		if (!count)
+			throw new Error("count is 0 for: "+name+" "+version);
 
 		return count;
 	}
@@ -129,6 +157,9 @@ export default class NpmInstaller {
 			}
 		}		
 
+		if (!resVersion)
+			throw new Error("Unable to find hoistable version for: "+name);
+
 		return resVersion;
 	}
 
@@ -140,7 +171,7 @@ export default class NpmInstaller {
 		let compatible=[];
 		for (let dep of this.getAllDependencies())
 			if (dep.name==name &&
-					semver.satisfies(version,dep.versionSpec))
+					semverNiceSatisfies(version,dep.versionSpec))
 				compatible.push(dep);
 
 		return compatible;

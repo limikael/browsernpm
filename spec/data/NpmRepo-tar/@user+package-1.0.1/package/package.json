@@ -1,0 +1,7 @@
+{
+	"name": "@user/package",
+	"version": "1.0.1",
+	"dependencies": {
+		"firstpackage": "^1.0.0"
+	}
+}

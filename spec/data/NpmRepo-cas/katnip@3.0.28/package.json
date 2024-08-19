@@ -1,5 +1,6 @@
 {
 	"name": "katnip",
+	"__installedVersion": "3.0.28",
 	"dependencies": {
 		"dummydep": "^1.2.3"
 	}

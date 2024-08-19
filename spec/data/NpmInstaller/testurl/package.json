@@ -1,0 +1,6 @@
+{
+	"name": "testpackage",
+	"dependencies": {
+		"@user/package": "https://BASE/@user+package-1.0.1.tgz"
+	}
+}

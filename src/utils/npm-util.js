@@ -3,7 +3,15 @@ import urlJoin from "url-join";
 import {TarReader, TarFileType} from '@gera2ld/tarjs';
 import path from "path-browserify";
 import {exists} from "./fs-util.js";
-import {arrayOnlyUnique} from "./js-util.js";
+import {arrayOnlyUnique, isValidUrl} from "./js-util.js";
+
+export function semverNiceSatisfies(version, range) {
+	//console.log("sat: "+version+" "+range);
+	if (isValidUrl(version) && version==range)
+		return true;
+
+	return semver.satisfies(version,range);
+}
 
 export function semverNiceMax(cands) {
 	let validCands=cands.filter(cand=>semver.valid(cand));

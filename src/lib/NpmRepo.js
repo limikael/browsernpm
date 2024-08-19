@@ -3,19 +3,19 @@ import urlJoin from "url-join";
 import semver from "semver";
 import path from "path-browserify";
 import {exists, linkRecursive} from "../utils/fs-util.js";
-import {extractTar} from "../utils/tar-util.js";
-import {ResolvablePromise} from "../utils/js-util.js";
+import {extractTar, fetchTarReader, tarReaderMatch} from "../utils/tar-util.js";
+import {ResolvablePromise, isValidUrl} from "../utils/js-util.js";
 
 export default class NpmRepo {
-	constructor({registryUrl, fetch, infoDir, fs, rewriteTarballUrl, casDir}={}) {
+	constructor({registryUrl, fetch, infoDir, fs, casDir}={}) {
 		this.registryUrl=registryUrl;
 		this.fetch=fetch;
 		this.infoDir=infoDir;
 		this.fs=fs;
-		this.rewriteTarballUrl=rewriteTarballUrl;
 		this.casDir=casDir;
 		this.casDownloadPromises={};
 		this.casPackageJsonPromises={};
+		this.tarReaderPromises={};
 
 		if (!this.fs)
 			throw new Error("NpmRepo need fs");
@@ -30,6 +30,17 @@ export default class NpmRepo {
 			getter: key=>this.loadPackageInfo(key),
 			invalidator: key=>this.removePackageInfo(key)
 		});
+	}
+
+	async getTarReader(url) {
+		if (this.tarReaderPromises[url])
+			return await this.tarReaderPromises[url];
+
+		this.tarReaderPromises[url]=new ResolvablePromise();
+		let tarReader=await fetchTarReader(url,{fetch: this.fetch});
+		this.tarReaderPromises[url].resolve(tarReader);
+
+		return await this.tarReaderPromises[url];
 	}
 
 	async getCasKeys() {
@@ -51,33 +62,35 @@ export default class NpmRepo {
 		return this.casKeysPromise;
 	}
 
-	parseCasKey(key) {
-		return key.split("@");
-	}
-
+	// Returns serialized versions.
 	async getCasVersions(packageName) {
 		let keys=await this.getCasKeys();
 		if (!keys)
 			return [];
 
+		let casName=this.serializePackageName(packageName);
 		let versions=[];
 		for (let key of keys) {
-			let [n,v]=this.parseCasKey(key);
-			if (n==packageName)
+			if (key.startsWith(casName)) {
+				let v=key.slice(casName.length+1);
 				versions.push(v);
+			}
 		}
 
 		return versions;
 	}
 
-	async getSatisfyingCasVersion(packageName, versionSpec) {
+	async _getSatisfyingCasVersion(packageName, versionSpec) {
 		let casVersions=await this.getCasVersions(packageName);
 		let casVer=semver.maxSatisfying(casVersions,versionSpec);
 		if (casVer)
 			return casVer;
 	}
 
-	async getSatisfyingInfoVersion(packageName, versionSpec) {
+	async _getSatisfyingInfoVersion(packageName, versionSpec) {
+		if (!semver.validRange(versionSpec))
+			throw new Error("Not valid semver range: "+versionSpec);
+
 		let packageInfo=await this.infoCache.get(packageName);
 		let candVer=semver.maxSatisfying(Object.keys(packageInfo.versions),versionSpec);
 		if (candVer)
@@ -93,15 +106,22 @@ export default class NpmRepo {
 	}
 
 	async getSatisfyingVersion(packageName, versionSpec) {
-		let casVer=await this.getSatisfyingCasVersion(packageName,versionSpec);
-		if (casVer)
-			return casVer;
+		if (semver.validRange(versionSpec)) {
+			let casVer=await this._getSatisfyingCasVersion(packageName,versionSpec);
+			if (casVer)
+				return casVer;
 
-		return await this.getSatisfyingInfoVersion(packageName,versionSpec);
+			return await this._getSatisfyingInfoVersion(packageName,versionSpec);
+		}
+
+		if (!isValidUrl(versionSpec))
+			throw new Error("Version spec is not semver range or url: "+versionSpec);
+
+		return versionSpec;
 	}
 
 	async getCasPackageJson(packageName, version) {
-		let casKey=packageName+"@"+version;
+		let casKey=this.serializePackageSpec(packageName,version);
 		if (this.casPackageJsonPromises[casKey])
 			return await this.casPackageJsonPromises[casKey];
 
@@ -118,26 +138,40 @@ export default class NpmRepo {
 	}
 
 	async getVersionDependencies(packageName, version) {
-		// Get via cas. todo: cache the package.json files?
+		let pkg;
+
+		// Get via cas.
 		let casKeys=await this.getCasKeys();
 		if (casKeys) {
-			let casKey=packageName+"@"+version;
-			if (casKeys.includes(casKey)) {
-				let pkg=await this.getCasPackageJson(packageName,version);
-				let deps=pkg.dependencies;
-				if (!deps)
-					return {};
+			let casKey=this.serializePackageSpec(packageName,version);
+			if (casKeys.includes(casKey))
+				pkg=await this.getCasPackageJson(packageName,version);
+		}
 
-				return deps;
-			}
+		if (!pkg && isValidUrl(version)) {
+			let tarReader=await this.getTarReader(version);
+			let fn=tarReaderMatch(tarReader,"package.json")
+			if (!fn)
+				fn=tarReaderMatch(tarReader,"package/package.json");
+
+			if (!fn)
+				throw new Error("Not npm package, package.json not found in: "+this.versionSpec);
+
+			pkg=JSON.parse(tarReader.getTextFile(fn));
 		}
 
 		// Get via info.
-		let packageInfo=await this.infoCache.get(packageName);
-		if (!packageInfo)
-			throw new Error("Unknown package version: "+packageName+" "+version);
+		if (!pkg && semver.valid(version)) {
+			let packageInfo=await this.infoCache.get(packageName);
+			if (!packageInfo)
+				throw new Error("Unknown package version: "+packageName+" "+version);
 
-		let pkg=packageInfo.versions[version];
+			pkg=packageInfo.versions[version];
+		}
+
+		if (!pkg)
+			throw new Error("Can't find package: "+packageName+" "+version);
+
 		let deps=pkg.dependencies;
 		if (!deps)
 			return {};
@@ -147,14 +181,32 @@ export default class NpmRepo {
 
 	async removePackageInfo(packageName) {
 		if (this.infoDir) {
-			let p=path.join(this.infoDir,packageName);
+			let p=path.join(this.infoDir,this.serializePackageName(packageName));
 			await this.fs.promises.rm(p,{force: true});
 		}
 	}
 
+	serializePackageName(name) {
+		return name.replaceAll("/","+");
+	}
+
+	serializePackageVersion(version) {
+		if (semver.valid(version))
+			return version;
+
+		if (isValidUrl(version))
+			return version.replaceAll("/","+").replaceAll("@","+").replaceAll(":","+");
+
+		throw new Error("Not semver or url: "+version);
+	}
+
+	serializePackageSpec(name, version) {
+		return this.serializePackageName(name)+"@"+this.serializePackageVersion(version);
+	}
+
 	async loadPackageInfo(packageName) {
 		if (this.infoDir) {
-			let p=path.join(this.infoDir,packageName);
+			let p=path.join(this.infoDir,this.serializePackageName(packageName));
 			if (await exists(p,{fs:this.fs}))
 				return JSON.parse(await this.fs.promises.readFile(p,"utf8"));
 		}
@@ -166,7 +218,7 @@ export default class NpmRepo {
 		let data=await response.json();
 		if (this.infoDir) {
 			await this.fs.promises.mkdir(this.infoDir,{recursive: true});
-			let p=path.join(this.infoDir,packageName);
+			let p=path.join(this.infoDir,this.serializePackageName(packageName));
 			await this.fs.promises.writeFile(p,JSON.stringify(data));
 		}
 
@@ -174,30 +226,46 @@ export default class NpmRepo {
 	}
 
 	async downloadPackage(packageName, version, target) {
-		if (!(await this.getSatisfyingInfoVersion(packageName,version)))
-			throw new Error("Not installable: "+packageName+" "+version);
+		let tarReader;
+		if (isValidUrl(version)) {
+			if (this.tarReaderPromises[version])
+				tarReader=await this.tarReaderPromises[version];
 
-		let packageInfo=await this.infoCache.get(packageName);
-		let tarballUrl=packageInfo.versions[version].dist.tarball;
-		if (this.rewriteTarballUrl)
-			tarballUrl=this.rewriteTarballUrl(tarballUrl);
+			else
+				tarReader=await fetchTarReader(url,{fetch: this.fetch});
+		}
 
+		else {
+			if (!(await this._getSatisfyingInfoVersion(packageName,version)))
+				throw new Error("Not installable: "+packageName+" "+version);
+
+			let packageInfo=await this.infoCache.get(packageName);
+			let tarballUrl=packageInfo.versions[version].dist.tarball;
+			tarReader=await fetchTarReader(tarballUrl,{
+				fetch: this.fetch
+			});
+		}
+
+		await this.fs.promises.rm(target,{recursive: true, force: true});
 		await extractTar({
-			url: tarballUrl,
-			fetch: this.fetch,
+			tarReader: tarReader,
 			archiveRoot: "package",
 			target: target,
 			fs: this.fs
 		});
 
-		//throw new Error("work in progress");
-		//console.log(tarballUrl);
+		let pkgPath=path.join(target,"package.json");
+		let pkgText=await this.fs.promises.readFile(pkgPath,"utf8");
+		let pkg=JSON.parse(pkgText);
+
+		pkg.__installedVersion=version;
+		await this.fs.promises.writeFile(pkgPath,JSON.stringify(pkg,null,2));
 	}
 
 	async install(packageName, version, target) {
 		let casKeys=await this.getCasKeys();
 		if (casKeys) {
-			let casKey=packageName+"@"+version;
+			let casKey=this.serializePackageSpec(packageName,version);
 			let casPackagePath=path.join(this.casDir,casKey);
 
 			// Put in CAS
@@ -220,6 +288,7 @@ export default class NpmRepo {
 
 			// Install from CAS
 			await this.fs.promises.mkdir(path.dirname(target),{recursive: true});
+			await this.fs.promises.rm(target,{recursive: true, force: true});
 			await linkRecursive(casPackagePath,target,{fs:this.fs});
 		}
 

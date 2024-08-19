@@ -20,11 +20,15 @@ export class DebugResponse {
 }
 
 export class DebugFetcher {
-	constructor() {
+	constructor({rewrite}={}) {
+		this.rewrite=rewrite;
 		this.urls=[];
 	}
 
 	async fetch(url) {
+		if (this.rewrite)
+			url=this.rewrite(url);
+
 		this.urls.push(url);
 		let u=new URL(url);
 		if (u.protocol!="file:")
@@ -34,8 +38,8 @@ export class DebugFetcher {
 	}
 }
 
-export function createDebugFetch() {
-	let fetcher=new DebugFetcher();
+export function createDebugFetch(options) {
+	let fetcher=new DebugFetcher(options);
 
 	function fetch(url) {
 		return fetcher.fetch(url)

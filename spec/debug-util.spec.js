@@ -16,10 +16,18 @@ describe("debug-util",()=>{
 	});
 
 	it("can create a debug fetcher",async ()=>{
-		let fetch=createDebugFetch();
+		let fetch=createDebugFetch({
+			rewrite: u=>{
+				if (u=="blugg")
+					return urlJoin("file://",__dirname,"data/debug-util/katnip-3.0.25-info.json")
 
-		let url=urlJoin("file://",__dirname,"data/debug-util/katnip-3.0.25-info.json");
-		let req=await fetch(url);
+				throw new Error("unexpected url");
+			}
+		});
+
+		//let url=urlJoin("file://",__dirname,"data/debug-util/katnip-3.0.25-info.json");
+
+		let req=await fetch("blugg");
 		let data=await req.json();
 		expect(data.name).toEqual("katnip");
 		expect(fetch.urls.length).toEqual(1);

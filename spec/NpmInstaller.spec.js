@@ -14,7 +14,6 @@ describe("NpmInstaller",()=>{
 			fetch: createDebugFetch(),
 			fs: fs,
 			casDir: path.join(__dirname,"data/NpmInstaller/cas")
-			//rewriteTarballUrl, 
 		});
 
 		let dep=await npmInstaller.createDependency("firstpackage","^1.0.0");
@@ -62,6 +61,9 @@ describe("NpmInstaller",()=>{
 		expect(await exists(path.join(installTo,"node_modules/firstpackage"),{fs:fs})).toEqual(true);
 		expect(await exists(path.join(installTo,"node_modules/firstpackage/"),{fs:fs})).toEqual(true);
 		expect(await exists(path.join(installTo,"node_modules/firstsubdep/package.json"),{fs:fs})).toEqual(true);
+
+		for (let dep of npmInstaller.getAllDependencies())
+			expect(await dep.isInstalled()).toEqual(true);
 	});
 
 	it("can hoist a package",async ()=>{
@@ -123,5 +125,89 @@ describe("NpmInstaller",()=>{
 		await npmInstaller.run();
 		expect(npmInstaller.warnings.length).toEqual(1);
 		expect(npmInstaller.warnings[0].includes("Circular")).toEqual(true);
+	});
+
+	it("can install url dependencies",async ()=>{
+		let installTo=path.join("tmp/installed-testurl");
+		await fs.promises.rm(installTo, {recursive: true, force: true});
+		await fs.promises.cp(
+			path.join(__dirname,"data/NpmInstaller/testurl"),
+			installTo,
+			{recursive: true}
+		);
+
+		let casDir=path.join("tmp/testurl-cas");
+		await fs.promises.rm(casDir, {recursive: true, force: true});
+		await fs.promises.cp(
+			path.join(__dirname,"data/NpmInstaller/cas"),
+			casDir,
+			{recursive: true}
+		);
+
+		let npmInstaller=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch({
+				rewrite: u=>{
+					if (!u.includes("https://BASE"))
+						throw new Error("unexpected url: "+u);
+
+					u=u.replace("https://BASE",urlJoin("file://",__dirname,"data/NpmRepo-tar"))
+					return u;
+				}
+			}),
+			fs: fs,
+			casDir: casDir,
+		});
+
+		await npmInstaller.run();
+	});
+
+	it("can ignore",async ()=>{
+		let installTo=path.join("tmp/installed-testignore");
+		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+		await fs.promises.cp(installFrom,installTo,{recursive: true});
+
+		let npmInstaller=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
+			ignore: ["firstsubdep"]
+		});
+
+		await npmInstaller.run();
+		expect(await exists("tmp/installed-testignore/node_modules/firstsubdep",{fs:fs})).toEqual(false);
+	});
+
+	it("cleans up",async ()=>{
+		let installTo=path.join("tmp/installed-cleanup");
+		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+		await fs.promises.cp(installFrom,installTo,{recursive: true});
+
+		let npmInstaller=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
+		});
+
+		await npmInstaller.run();
+
+		expect(await exists("tmp/installed-cleanup/node_modules/firstsubdep",{fs:fs})).toEqual(true);
+
+		let npmInstaller2=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			full: true,
+			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
+			ignore: ["firstsubdep"]
+		});
+
+		await npmInstaller2.run();
+
+		expect(await exists("tmp/installed-cleanup/node_modules/firstsubdep",{fs:fs})).toEqual(false);
 	});
 })
