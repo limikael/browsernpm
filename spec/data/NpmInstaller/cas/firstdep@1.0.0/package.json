@@ -1,6 +1,7 @@
 {
 	"name": "firstdep",
 	"dependencies": {
-		"firstsubdep": "^1.0.0"
+		"firstsubdep": "^1.0.0",
+		"seconddep": "2.0.0"
 	}
 }

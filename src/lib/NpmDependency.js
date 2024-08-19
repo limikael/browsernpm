@@ -60,7 +60,7 @@ export default class NpmDependency {
 
 	getTree() {
 		return {
-			name: this.name,
+			name: this.name+" "+this.versionSpec+" => "+this.resolvedVersion,
 			dependencies: this.dependencies.map(d=>d.getTree())
 		}
 	}
@@ -86,5 +86,14 @@ export default class NpmDependency {
 			this.resolvedVersion,
 			this.getInstallPath()
 		);
+	}
+
+	hoist() {
+		this.setParent(null);
+
+		for (let dep of this.npmInstaller.getCompatibleDependencies(this.name,this.resolvedVersion))
+			dep.setParent();
+
+		this.setParent(this.npmInstaller);
 	}
 }
