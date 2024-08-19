@@ -3,7 +3,7 @@ import urlJoin from "url-join";
 import {TarReader, TarFileType} from '@gera2ld/tarjs';
 import path from "path-browserify";
 import {exists} from "./fs-util.js";
-import {arrayOnlyUnique, isValidUrl} from "./js-util.js";
+import {arrayUnique, isValidUrl} from "./js-util.js";
 
 export function semverNiceSatisfies(version, range) {
 	//console.log("sat: "+version+" "+range);
@@ -57,7 +57,7 @@ export function semverComputeSets(ranges) {
 	}
 
 	for (let i=0; i<sets.length; i++)
-		sets[i]=arrayOnlyUnique(sets[i]);
+		sets[i]=arrayUnique(sets[i]);
 
 	sets.push(...urls.map(a=>[a]));
 
@@ -80,13 +80,13 @@ export function semverMaxSatisfyingAll(available, ranges) {
 	return cands[0];
 }
 
-export async function fetchPackageInfo(packageName) {
+/*export async function fetchPackageInfo(packageName) {
 	let response=await fetch(urlJoin("https://registry.npmjs.org/",packageName));
 	if (response.status<200 || response.status>=300)
 		throw new Error("Can't get package info: "+response.status);
 
 	return await response.json();
-}
+}*/
 
 export async function projectNeedInstall(projectDir, {fs, ignore}) {
 	/*if (!path.isAbsolute(projectDir))
@@ -134,3 +134,37 @@ export async function projectNeedInstall(projectDir, {fs, ignore}) {
 		}
 	}
 }*/
+
+export async function getInstalledPackagePaths(root, {fs}) {
+	if (!await exists(root,{fs}))
+		throw new Error("Does not exist: "+root);
+
+	let modulesDir=path.join(root,"node_modules");
+	if (!await exists(modulesDir,{fs}))
+		return [];
+
+	let res=[];
+	let pathnames=await fs.promises.readdir(modulesDir);
+	for (let pathname of pathnames) {
+		if (!pathname.startsWith(".")) {
+			let subpath=path.join(root,"node_modules",pathname);
+			if (pathname.startsWith("@")) {
+				let subpathnames=await fs.promises.readdir(subpath);
+				for (let subpathname of subpathnames) {
+					if (!subpathname.startsWith(".")) {
+						let subsub=path.join(subpath,subpathname)
+						res.push(subsub);
+						res.push(...await getInstalledPackagePaths(subsub,{fs}));
+					}
+				}
+			}
+
+			else {
+				res.push(subpath);
+				res.push(...await getInstalledPackagePaths(subpath,{fs}));
+			}
+		}
+	}
+
+	return res;
+}

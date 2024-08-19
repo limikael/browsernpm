@@ -2,7 +2,8 @@ import NpmRepo from "./NpmRepo.js";
 import NpmDependency from "./NpmDependency.js";
 import path from "path-browserify";
 import semver from "semver";
-import {semverNiceSatisfies} from "../utils/npm-util.js";
+import {semverNiceSatisfies, getInstalledPackagePaths} from "../utils/npm-util.js";
+import {arrayDiff} from "../utils/js-util.js";
 
 export default class NpmInstaller {
 	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, ignore, full, clean}) {
@@ -33,6 +34,8 @@ export default class NpmInstaller {
 	}
 
 	async run() {
+		let res={success: true};
+
 		await this.loadDependencies();
 
 		if (this.dedupe) {
@@ -49,11 +52,25 @@ export default class NpmInstaller {
 		}
 
 		if (this.clean)
-			await this.cleanUp();
+			res.removed=await this.cleanUp();
+
+		res.warnings=[...this.warnings];
+		return res;
 	}
 
 	async cleanUp() {
-		
+		let existing=await getInstalledPackagePaths(this.cwd,{fs:this.fs});
+		let expected=this.getAllDependencies().map(d=>d.getInstallPath());
+
+		let missing=arrayDiff(expected,existing);
+		if (missing.length)
+			throw new Error("Missing after install: "+missing);
+
+		let extras=arrayDiff(existing,expected);
+		for (let extra of extras)
+			await this.fs.promises.rm(extra,{recursive: true, force: true});
+
+		return extras.length;
 	}
 
 	async createDependency(name, versionSpec) {

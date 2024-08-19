@@ -12,8 +12,9 @@ todo:
  x http://afwefwef
  x ignore
  x full
+ x clean
 
  - progress
  - incomplete
  - quick
- - clean
+ - override

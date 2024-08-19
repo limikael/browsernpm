@@ -206,8 +206,9 @@ describe("NpmInstaller",()=>{
 			ignore: ["firstsubdep"]
 		});
 
-		await npmInstaller2.run();
+		let res=await npmInstaller2.run();
 
 		expect(await exists("tmp/installed-cleanup/node_modules/firstsubdep",{fs:fs})).toEqual(false);
+		expect(res.removed).toEqual(1);
 	});
 })

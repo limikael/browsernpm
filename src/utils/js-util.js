@@ -1,4 +1,4 @@
-export function arrayOnlyUnique(a) {
+export function arrayUnique(a) {
 	function onlyUnique(value, index, array) {
 		return array.indexOf(value) === index;
 	}
@@ -13,6 +13,10 @@ export function arrayRemove(array, item) {
 
 	array.splice(index,1);
 	return array;
+}
+
+export function arrayDiff(a, b) {
+	return a.filter(item=>!b.includes(item));	
 }
 
 export class ResolvablePromise extends Promise {

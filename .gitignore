@@ -1,3 +1,4 @@
 **/node_modules
 tmp
 attic
+!spec/data/npm-util/testpackage/**/node_modules
