@@ -1,5 +1,6 @@
 {
 	"name": "firstpackage",
+	"version": "1.0.1",
 	"__installedVersion": "1.0.1",
 	"dependencies": {
 		"firstdep": "^1.0.0",

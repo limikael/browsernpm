@@ -189,7 +189,7 @@ describe("NpmInstaller",()=>{
 		expect(await exists("tmp/installed-testignore/node_modules/firstsubdep",{fs:fs})).toEqual(false);
 	});
 
-	it("cleans up",async ()=>{
+	it("cleans up and works with quick",async ()=>{
 		let installTo=path.join("tmp/installed-cleanup");
 		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
 		await fs.promises.rm(installTo,{recursive: true, force: true});
@@ -219,9 +219,21 @@ describe("NpmInstaller",()=>{
 
 		expect(await exists("tmp/installed-cleanup/node_modules/firstsubdep",{fs:fs})).toEqual(false);
 		expect(res.removed).toEqual(2);
+
+		let npmInstaller3=new NpmInstaller({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
+			ignore: ["firstsubdep"],
+			quick: true
+		});
+
+		let res3=await npmInstaller3.run();
+		expect(res3.quick).toEqual(true);
 	});
 
-	it("cleans up",async ()=>{
+	it("overrides",async ()=>{
 		let installTo=path.join("tmp/installed-override");
 		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
 		await fs.promises.rm(installTo,{recursive: true, force: true});

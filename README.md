@@ -17,4 +17,4 @@ todo:
  x parallel
  x override
  x incomplete
- - quick
+ x quick

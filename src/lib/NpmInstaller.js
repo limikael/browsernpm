@@ -2,13 +2,13 @@ import NpmRepo from "./NpmRepo.js";
 import NpmDependency from "./NpmDependency.js";
 import path from "path-browserify";
 import semver from "semver";
-import {semverNiceSatisfies, getInstalledPackagePaths} from "../utils/npm-util.js";
+import {semverNiceSatisfies, getInstalledPackagePaths, projectNeedInstall} from "../utils/npm-util.js";
 import {arrayDiff, runInParallel} from "../utils/js-util.js";
 import {exists} from "../utils/fs-util.js";
 
 export default class NpmInstaller {
 	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, 
-			ignore, full, clean, override, onProgress}) {
+			ignore, full, clean, override, quick, onProgress}) {
 		this.cwd=cwd;
 		this.fs=fs;
 		this.dedupe=dedupe;
@@ -17,6 +17,7 @@ export default class NpmInstaller {
 		this.clean=clean;
 		this.onProgress=onProgress;
 		this.override=override;
+		this.quick=quick;
 
 		if (this.dedupe===undefined)
 			this.dedupe=true;
@@ -44,8 +45,19 @@ export default class NpmInstaller {
 		let res={success: true};
 
 		let incompleteFile=path.join(this.cwd,"node_modules",".INCOMPLETE");
-		if (await exists(incompleteFile,{fs:this.fs}))
+		if (await exists(incompleteFile,{fs:this.fs})) {
+			//console.log("incomplete exists");
 			this.full=true;
+		}
+
+		// untested...
+		if (this.quick
+				&& !this.full
+				&& !Object.keys(this.override).length
+				&& !await projectNeedInstall(this.cwd,{fs: this.fs, ignore: this.ignore})) {
+			//console.log("returning.....");
+			return {success: true, quick: true, warnings: []};
+		}
 
 		if (!await exists(path.dirname(incompleteFile),{fs:this.fs}))
 			await this.fs.promises.mkdir(path.dirname(incompleteFile),{resursive:true});

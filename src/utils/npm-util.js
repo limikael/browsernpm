@@ -110,6 +110,8 @@ export async function projectNeedInstall(projectDir, {fs, ignore}) {
 			let currentVersion=depPackageJson.version;
 			let requiredVersion=mainPackageJson.dependencies[depName];
 
+			//console.log("checking: "+depName+" "+currentVersion+" "+requiredVersion);
+
 			if (!semver.satisfies(currentVersion,requiredVersion))
 				return true;
 		}
