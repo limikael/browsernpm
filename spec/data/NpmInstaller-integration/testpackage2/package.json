@@ -1,0 +1,7 @@
+{
+	"name": "test",
+	"dependencies": {
+		"@types/node": "22.4.1",
+		"fsmix": "https://github.com/limikael/fsmix/archive/refs/heads/master.tar.gz"
+	}
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "jasmine",
+    "integration-test": "jasmine --config=spec/support/integration.json",
     "tar-spec-data": "tar czf spec/data/NpmRepo-tar/@user+package-1.0.1.tgz -C spec/data/NpmRepo-tar/@user+package-1.0.1/ package"
   },
   "dependencies": {

@@ -28,9 +28,7 @@ export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob,
 
 	for (let fileInfo of tarReader.fileInfos) {
 		let relFn=path.relative(path.join("/",archiveRoot),path.join("/",fileInfo.name));
-		//console.log(relFn);
-
-		if (relFn && fileInfo.type!=TarFileType.Dir) {
+		if (relFn && !relFn.startsWith("..") && fileInfo.type!=TarFileType.Dir) {
 			//console.log("processing: "+relFn+" type: "+fileInfo.type);
 			let fn=path.join(target,relFn);
 			//console.log(fn);

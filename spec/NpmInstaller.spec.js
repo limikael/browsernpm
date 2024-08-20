@@ -5,10 +5,25 @@ import {createDebugFetch} from "../src/utils/debug-util.js";
 import urlJoin from "url-join";
 import NpmInstaller from "../src/lib/NpmInstaller.js";
 import {exists} from "../src/utils/fs-util.js";
+import {installDependencies} from "../src/lib/browsernpm.js";
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 
 describe("NpmInstaller",()=>{
+	it("can run as a function",async ()=>{
+		let installTo=path.join("tmp/installed-fn");
+		let installFrom=path.join(__dirname,"data/NpmInstaller/testpackage");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+		await fs.promises.cp(installFrom,installTo,{recursive: true});
+
+		await installDependencies({
+			cwd: installTo,
+			fetch: createDebugFetch(),
+			fs: fs,
+			casDir: path.join(__dirname,"data/NpmInstaller/cas"),
+		});
+	});
+
 	it("can create a dependency",async ()=>{
 		let npmInstaller=new NpmInstaller({
 			fetch: createDebugFetch(),

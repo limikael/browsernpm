@@ -38,7 +38,7 @@ export default class NpmDependency {
 			}
 
 			else {
-				if (!this.npmInstaller.ignore.includes(depName)) {
+				if (!this.npmInstaller.shouldIgnore(depName,this.dependencySpecs[depName])) {
 					let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
 					this.addDependency(dep);
 				}

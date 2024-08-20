@@ -4,7 +4,7 @@ import semver from "semver";
 import path from "path-browserify";
 import {exists, linkRecursive} from "../utils/fs-util.js";
 import {extractTar, fetchTarReader, tarReaderMatch} from "../utils/tar-util.js";
-import {ResolvablePromise, isValidUrl} from "../utils/js-util.js";
+import {ResolvablePromise, isValidUrl, splitPath} from "../utils/js-util.js";
 
 export default class NpmRepo {
 	constructor({registryUrl, fetch, infoDir, fs, casDir}={}) {
@@ -137,6 +137,14 @@ export default class NpmRepo {
 		return await this.casPackageJsonPromises[casKey];
 	}
 
+	getNpmTarArchiveRoot(tarReader) {
+		let match=tarReaderMatch(tarReader,"*/package.json");
+		if (!match)
+			throw new Error("Tar archive not recognized as NPM package.");
+
+		return path.dirname(match);
+	}
+
 	async getVersionDependencies(packageName, version) {
 		let pkg;
 
@@ -144,20 +152,19 @@ export default class NpmRepo {
 		let casKeys=await this.getCasKeys();
 		if (casKeys) {
 			let casKey=this.serializePackageSpec(packageName,version);
-			if (casKeys.includes(casKey))
+			if (casKeys.includes(casKey)) {
+				//console.log("getting from cas: "+casKey);
 				pkg=await this.getCasPackageJson(packageName,version);
+			}
 		}
 
 		if (!pkg && isValidUrl(version)) {
+			//let u=new URL(version);
+			//console.log(u.protocol+" "+version);
+
 			let tarReader=await this.getTarReader(version);
-			let fn=tarReaderMatch(tarReader,"package.json")
-			if (!fn)
-				fn=tarReaderMatch(tarReader,"package/package.json");
-
-			if (!fn)
-				throw new Error("Not npm package, package.json not found in: "+this.versionSpec);
-
-			pkg=JSON.parse(tarReader.getTextFile(fn));
+			let archiveRoot=this.getNpmTarArchiveRoot(tarReader);
+			pkg=JSON.parse(tarReader.getTextFile(path.join(archiveRoot,"package.json")));
 		}
 
 		// Get via info.
@@ -231,8 +238,9 @@ export default class NpmRepo {
 			if (this.tarReaderPromises[version])
 				tarReader=await this.tarReaderPromises[version];
 
-			else
-				tarReader=await fetchTarReader(url,{fetch: this.fetch});
+			else {
+				tarReader=await fetchTarReader(version,{fetch: this.fetch});
+			}
 		}
 
 		else {
@@ -241,20 +249,19 @@ export default class NpmRepo {
 
 			let packageInfo=await this.infoCache.get(packageName);
 			let tarballUrl=packageInfo.versions[version].dist.tarball;
-			tarReader=await fetchTarReader(tarballUrl,{
-				fetch: this.fetch
-			});
+			//console.log(tarballUrl);
+			tarReader=await fetchTarReader(tarballUrl,{fetch: this.fetch});
 		}
 
-		//await this.fs.promises.rm(target,{recursive: true, force: true});
 		await extractTar({
 			tarReader: tarReader,
-			archiveRoot: "package",
+			archiveRoot: this.getNpmTarArchiveRoot(tarReader),
 			target: target,
 			fs: this.fs
 		});
 
 		let pkgPath=path.join(target,"package.json");
+		//console.log("reading: "+pkgPath);
 		let pkgText=await this.fs.promises.readFile(pkgPath,"utf8");
 		let pkg=JSON.parse(pkgText);
 
@@ -270,6 +277,8 @@ export default class NpmRepo {
 
 			// Put in CAS
 			if (!casKeys.includes(casKey)) {
+				//console.log("putting in cas: "+casKey);
+
 				casKeys.push(casKey);
 				this.casDownloadPromises[casKey]=new ResolvablePromise();
 
@@ -277,6 +286,7 @@ export default class NpmRepo {
 				if (await exists(casPartPath,{fs:this.fs}))
 					await this.fs.promises.rm(casPartPath,{recursive: true});
 
+				//console.log("download to:"+casPartPath);
 				await this.downloadPackage(packageName,version,casPartPath);
 				await this.fs.promises.rename(casPartPath,casPackagePath);
 

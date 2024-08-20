@@ -1,0 +1,6 @@
+{
+	"name": "test",
+	"dependencies": {
+		"katnip-twentytwentyfour": "3.0.43"
+	}
+}

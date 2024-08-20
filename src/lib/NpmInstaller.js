@@ -3,7 +3,7 @@ import NpmDependency from "./NpmDependency.js";
 import path from "path-browserify";
 import semver from "semver";
 import {semverNiceSatisfies, getInstalledPackagePaths, projectNeedInstall} from "../utils/npm-util.js";
-import {arrayDiff, runInParallel} from "../utils/js-util.js";
+import {arrayDiff, runInParallel, isValidUrl} from "../utils/js-util.js";
 import {exists} from "../utils/fs-util.js";
 
 export default class NpmInstaller {
@@ -105,6 +105,7 @@ export default class NpmInstaller {
 			throw new Error("Missing after install: "+missing);
 
 		let extras=arrayDiff(existing,expected);
+		//console.log(extras);
 		for (let extra of extras)
 			await this.fs.promises.rm(extra,{recursive: true, force: true});
 
@@ -128,6 +129,31 @@ export default class NpmInstaller {
 		return dependency;
 	}
 
+	shouldIgnore(depName, version) {
+		if (this.ignore.includes(depName))
+			return true;
+
+		if (isValidUrl(version)) {
+			let u=new URL(version);
+			switch (u.protocol) {
+				case "http:":
+				case "https:":
+					break;
+
+				case "npm:":
+					this.warnings.push("Can't handle npm: deps: "+depName+" "+version);
+					return true;
+					break;
+
+				default:
+					throw new Error("Unknown url dep: "+version);
+					break;
+			}
+		}
+
+		return false;
+	}
+
 	async loadDependencies() {
 		this.dependencies=[];
 
@@ -139,7 +165,7 @@ export default class NpmInstaller {
 			deps={};
 
 		for (let depName in deps) {
-			if (!this.ignore.includes(depName)) {
+			if (!this.shouldIgnore(depName,deps[depName])) {
 				let dep=await this.createDependency(depName,deps[depName]);
 				this.addDependency(dep);
 			}
