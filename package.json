@@ -19,6 +19,6 @@
     "jasmine": "^5.1.0"
   },
   "exports": {
-    ".": "./src/browsernpm.js"
+    ".": "./src/lib/browsernpm.js"
   }
 }

@@ -99,7 +99,9 @@ export async function projectNeedInstall(projectDir, {fs, ignore}) {
 		return true;
 
 	let mainPackageJsonPath=path.join(projectDir,"package.json");
-	let mainPackageJson=JSON.parse(await fs.promises.readFile(mainPackageJsonPath,"utf8"));
+	let mainPackageText=await fs.promises.readFile(mainPackageJsonPath,"utf8");
+	//console.log(mainPackageText);
+	let mainPackageJson=JSON.parse(mainPackageText);
 	for (let depName in mainPackageJson.dependencies) {
 		if (!ignore.includes(depName)) {
 			let depPackageJsonPath=path.join(projectDir,"node_modules",depName,"package.json");

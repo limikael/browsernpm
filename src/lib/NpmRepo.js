@@ -7,7 +7,7 @@ import {extractTar, fetchTarReader, tarReaderMatch} from "../utils/tar-util.js";
 import {ResolvablePromise, isValidUrl, splitPath} from "../utils/js-util.js";
 
 export default class NpmRepo {
-	constructor({registryUrl, fetch, infoDir, fs, casDir}={}) {
+	constructor({registryUrl, fetch, infoDir, fs, casDir, writeBlob}={}) {
 		this.registryUrl=registryUrl;
 		this.fetch=fetch;
 		this.infoDir=infoDir;
@@ -16,6 +16,7 @@ export default class NpmRepo {
 		this.casDownloadPromises={};
 		this.casPackageJsonPromises={};
 		this.tarReaderPromises={};
+		this.writeBlob=writeBlob;
 
 		if (!this.fs)
 			throw new Error("NpmRepo need fs");
@@ -130,7 +131,7 @@ export default class NpmRepo {
 		//console.log("loading package.json from cas");
 		let casPackagePath=path.join(this.casDir,casKey);
 		let pkgJsonPath=path.join(casPackagePath,"package.json");
-		let pkgJson=await this.fs.promises.readFile(pkgJsonPath)
+		let pkgJson=await this.fs.promises.readFile(pkgJsonPath,"utf8");
 		let pkg=JSON.parse(pkgJson);
 
 		this.casPackageJsonPromises[casKey].resolve(pkg); //=new ResolvablePromise();
@@ -224,7 +225,9 @@ export default class NpmRepo {
 
 		let data=await response.json();
 		if (this.infoDir) {
+			//console.log("making: "+this.infoDir);
 			await this.fs.promises.mkdir(this.infoDir,{recursive: true});
+			//console.log("made...");
 			let p=path.join(this.infoDir,this.serializePackageName(packageName));
 			await this.fs.promises.writeFile(p,JSON.stringify(data));
 		}
@@ -257,7 +260,8 @@ export default class NpmRepo {
 			tarReader: tarReader,
 			archiveRoot: this.getNpmTarArchiveRoot(tarReader),
 			target: target,
-			fs: this.fs
+			fs: this.fs,
+			writeBlob: this.writeBlob
 		});
 
 		let pkgPath=path.join(target,"package.json");

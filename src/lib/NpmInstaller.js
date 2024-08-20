@@ -8,7 +8,7 @@ import {exists} from "../utils/fs-util.js";
 
 export default class NpmInstaller {
 	constructor({cwd, registryUrl, fetch, infoDir, fs, casDir, dedupe, 
-			ignore, full, clean, override, quick, onProgress}) {
+			ignore, full, clean, override, quick, onProgress, writeBlob}) {
 		this.cwd=cwd;
 		this.fs=fs;
 		this.dedupe=dedupe;
@@ -36,12 +36,15 @@ export default class NpmInstaller {
 			fetch,
 			infoDir,
 			fs,
-			casDir
+			casDir,
+			writeBlob
 		});
 		this.warnings=[];
 	}
 
 	async run() {
+		//console.log("RUNNING NEW INSTALLER...");
+
 		let res={success: true};
 
 		let incompleteFile=path.join(this.cwd,"node_modules",".INCOMPLETE");
