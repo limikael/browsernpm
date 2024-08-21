@@ -104,7 +104,7 @@ export default class NpmInstaller {
 
 		await this.fs.promises.unlink(incompleteFile);
 
-		console.log("install done");
+		//console.log("install done");
 
 		res.warnings=[...this.warnings];
 		return res;

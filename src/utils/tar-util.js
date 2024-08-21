@@ -19,16 +19,19 @@ export function tarReaderMatch(tarReader, pattern) {
 	}
 }
 
-export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob, fetch, url}={}) {
+export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob, fetch, url, throttle}={}) {
 	if (url)
 		tarReader=await fetchTarReader(url,{fetch});
 
 	if (!archiveRoot)
 		archiveRoot="";
 
+	let count=0;
 	for (let fileInfo of tarReader.fileInfos) {
 		let relFn=path.relative(path.join("/",archiveRoot),path.join("/",fileInfo.name));
 		if (relFn && !relFn.startsWith("..") && fileInfo.type!=TarFileType.Dir) {
+			//console.log(relFn);
+
 			//console.log("processing: "+relFn+" type: "+fileInfo.type);
 			let fn=path.join(target,relFn);
 			//console.log(fn);
@@ -43,6 +46,10 @@ export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob,
 				let array=new Uint8Array(await blob.arrayBuffer());
 				await fs.promises.writeFile(fn,array);
 			}
+
+			count++;
+			if (throttle && !(count%throttle))
+				await new Promise(r=>setTimeout(r,0));
 		}
 	}
 }
