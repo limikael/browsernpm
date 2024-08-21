@@ -265,7 +265,6 @@ export default class NpmRepo {
 		});
 
 		let pkgPath=path.join(target,"package.json");
-		//console.log("reading: "+pkgPath);
 		let pkgText=await this.fs.promises.readFile(pkgPath,"utf8");
 		let pkg=JSON.parse(pkgText);
 
