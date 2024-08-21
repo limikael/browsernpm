@@ -45,8 +45,11 @@ export default class NpmDependency {
 			}
 		}
 
+		let promises=[];
 		for (let dep of this.dependencies)
-			await dep.loadDependencies({onProgress});
+			promises.push(dep.loadDependencies({onProgress}));
+
+		await Promise.all(promises);
 
 		onProgress();
 	}

@@ -77,15 +77,20 @@ export default class NpmInstaller {
 
 		let jobs=[];
 		for (let dependency of this.getAllDependencies()) {
-			if (this.full ||
+			/*if (this.full ||
 					!await dependency.isInstalled())
-				jobs.push(async ()=>await dependency.install());
+				jobs.push(async ()=>await dependency.install());*/
+			jobs.push(async ()=>{
+				if (this.full ||
+						!await dependency.isInstalled())
+					await dependency.install();
+			});
 		}
 
 		if (jobs.length && this.onProgress)
 			this.onProgress("install",0);
 
-		await runInParallel(jobs,4,progress=>{
+		await runInParallel(jobs,10,progress=>{
 			if (this.onProgress)
 				this.onProgress("install",progress);
 		});
@@ -177,14 +182,17 @@ export default class NpmInstaller {
 		let oldReported;
 		let handleProgress=()=>{
 			let percent=this.getLoadDependenciesPercent();
-			if (this.onProgress && (percent!=oldReported))
+			if (this.onProgress && (percent>oldReported))
 				this.onProgress("info",percent);
 
 			oldReported=percent
 		}
 
+		let promises=[];
 		for (let dep of this.dependencies)
-			await dep.loadDependencies({onProgress: handleProgress});
+			promises.push(dep.loadDependencies({onProgress: handleProgress}));
+
+		await Promise.all(promises);
 
 		handleProgress();
 	}
