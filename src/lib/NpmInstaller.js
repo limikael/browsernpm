@@ -79,23 +79,32 @@ export default class NpmInstaller {
 		for (let dependency of this.getAllDependencies()) {
 			jobs.push(async ()=>{
 				if (this.full ||
-						!await dependency.isInstalled())
+						!await dependency.isInstalled()) {
 					await dependency.install();
+					await new Promise(r=>setTimeout(r,0));
+				}
 			});
 		}
+
+		//console.log("job len: "+jobs.length);
 
 		if (jobs.length && this.onProgress)
 			this.onProgress("install",0);
 
+		let oldReported=-1;
 		await runInParallel(jobs,10,progress=>{
-			if (this.onProgress)
+			if (this.onProgress && progress>oldReported) {
+				oldReported=progress;
 				this.onProgress("install",progress);
+			}
 		});
 
 		if (this.clean)
 			res.removed=await this.cleanUp();
 
 		await this.fs.promises.unlink(incompleteFile);
+
+		console.log("install done");
 
 		res.warnings=[...this.warnings];
 		return res;
