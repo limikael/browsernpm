@@ -77,9 +77,6 @@ export default class NpmInstaller {
 
 		let jobs=[];
 		for (let dependency of this.getAllDependencies()) {
-			/*if (this.full ||
-					!await dependency.isInstalled())
-				jobs.push(async ()=>await dependency.install());*/
 			jobs.push(async ()=>{
 				if (this.full ||
 						!await dependency.isInstalled())
@@ -172,27 +169,43 @@ export default class NpmInstaller {
 		if (!deps)
 			deps={};
 
+		/*let depPromises=[];
 		for (let depName in deps) {
 			if (!this.shouldIgnore(depName,deps[depName])) {
-				let dep=await this.createDependency(depName,deps[depName]);
-				this.addDependency(dep);
+				depPromises.push(this.createDependency(depName,deps[depName]))
 			}
 		}
 
-		let oldReported;
-		let handleProgress=()=>{
-			let percent=this.getLoadDependenciesPercent();
-			if (this.onProgress && (percent>oldReported))
-				this.onProgress("info",percent);
+		for (let dep of await Promise.all(depPromises))
+			this.addDependency(dep);*/
 
-			oldReported=percent
+		let addPromises=[];
+		for (let depName in deps) {
+			if (!this.shouldIgnore(depName,deps[depName])) {
+				addPromises.push((async ()=>{
+					let dep=await this.createDependency(depName,deps[depName]);
+					this.addDependency(dep);
+				})());
+			}
 		}
 
-		let promises=[];
-		for (let dep of this.dependencies)
-			promises.push(dep.loadDependencies({onProgress: handleProgress}));
+		await Promise.all(addPromises);
 
-		await Promise.all(promises);
+		let oldReported=-1;
+		let handleProgress=()=>{
+			//console.log("handle load progress: "+this.getLoadDependenciesPercent());
+			let percent=this.getLoadDependenciesPercent();
+			if (this.onProgress && (percent>oldReported)) {
+				this.onProgress("info",percent);
+				oldReported=percent;
+			}
+		}
+
+		let loadPromises=[];
+		for (let dep of this.dependencies)
+			loadPromises.push(dep.loadDependencies({onProgress: handleProgress}));
+
+		await Promise.all(loadPromises);
 
 		handleProgress();
 	}

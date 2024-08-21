@@ -32,6 +32,8 @@ export default class NpmDependency {
 		let depPath=this.getDependencyPath();
 		//console.log(depPath);
 		this.dependencies=[];
+
+		let addPromises=[];
 		for (let depName of Object.keys(this.dependencySpecs)) {
 			if (depPath.includes(depName)) {
 				this.npmInstaller.warnings.push("Circular dependency: "+depName+" in "+this.name);
@@ -39,17 +41,22 @@ export default class NpmDependency {
 
 			else {
 				if (!this.npmInstaller.shouldIgnore(depName,this.dependencySpecs[depName])) {
-					let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
-					this.addDependency(dep);
+					addPromises.push((async ()=>{
+						let dep=await this.npmInstaller.createDependency(depName,this.dependencySpecs[depName]);
+						this.addDependency(dep);
+					})());
 				}
 			}
 		}
 
-		let promises=[];
-		for (let dep of this.dependencies)
-			promises.push(dep.loadDependencies({onProgress}));
+		await Promise.all(addPromises);
+		onProgress();
 
-		await Promise.all(promises);
+		let loadPromises=[];
+		for (let dep of this.dependencies)
+			loadPromises.push(dep.loadDependencies({onProgress}));
+
+		await Promise.all(loadPromises);
 
 		onProgress();
 	}
@@ -57,6 +64,8 @@ export default class NpmDependency {
 	getLoadDependenciesPercent() {
 		if (!this.loadStarted)
 			return 0;
+
+		//let numDependencies=Object.keys(this.dependencySpecs).length;
 
 		if (!this.dependencies.length)
 			return 100;
