@@ -37,6 +37,7 @@ export default class NpmInstaller {
 			infoDir,
 			fs,
 			casDir,
+			casOverride: Object.keys(this.override),
 			writeBlob
 		});
 		this.warnings=[];
@@ -53,7 +54,13 @@ export default class NpmInstaller {
 			this.full=true;
 		}
 
+		let overrideFile=path.join(this.cwd,"node_modules",".OVERRIDE");
+		if (await exists(overrideFile,{fs:this.fs}) ||
+				Object.keys(this.override).length)
+			this.quick=false;
+
 		if (this.quick
+				&& (Object.keys(this.override).length==0)
 				&& !this.full
 				&& !Object.keys(this.override).length
 				&& !await projectNeedInstall(this.cwd,{fs: this.fs, ignore: this.ignore})) {
@@ -65,6 +72,8 @@ export default class NpmInstaller {
 			await this.fs.promises.mkdir(path.dirname(incompleteFile),{resursive:true});
 
 		await this.fs.promises.writeFile(incompleteFile,"");
+		if (Object.keys(this.override).length)
+			await this.fs.promises.writeFile(overrideFile,"");
 
 		await this.loadDependencies();
 
@@ -76,7 +85,8 @@ export default class NpmInstaller {
 		}
 
 		let jobs=[];
-		for (let dependency of this.getAllDependencies()) {
+//		for (let dependency of this.getAllDependencies()) {
+		for (let dependency of this.dependencies) {
 			jobs.push(async ()=>{
 				if (this.full ||
 						!await dependency.isInstalled()) {
@@ -103,6 +113,9 @@ export default class NpmInstaller {
 			res.removed=await this.cleanUp();
 
 		await this.fs.promises.unlink(incompleteFile);
+		if (await exists(overrideFile,{fs:this.fs}) &&
+				!Object.keys(this.override).length)
+			await this.fs.promises.unlink(overrideFile);
 
 		//console.log("install done");
 
@@ -129,6 +142,9 @@ export default class NpmInstaller {
 	async createDependency(name, versionSpec) {
 		if (this.ignore.includes(name))
 			throw new Error("Trying to create ignored dep: "+name);
+
+		/*if (name=="katnip-components")
+			console.log("create dep: ",this.override);*/
 
 		if (this.override[name])
 			versionSpec=this.override[name];

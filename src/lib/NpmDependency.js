@@ -123,6 +123,9 @@ export default class NpmDependency {
 			this.resolvedVersion,
 			this.getInstallPath()
 		);
+
+		for (let dep of this.dependencies)
+			await dep.install();
 	}
 
 	hoist() {
@@ -135,6 +138,10 @@ export default class NpmDependency {
 	}
 
 	async isInstalled() {
+		if (Object.keys(this.npmInstaller.override).includes(this.name))
+			return false;
+
+		//console.log("is installed? "+this.name);
 		let fs=this.npmInstaller.fs;
 		if (!await exists(this.getInstallPath(),{fs:fs}) ||
 				!await exists(path.join(this.getInstallPath(),"package.json"),{fs:fs}))
@@ -145,9 +152,17 @@ export default class NpmDependency {
 		let pkg=JSON.parse(pkgText);
 		//console.log(pkg);
 
-		if (pkg.__installedVersion==this.resolvedVersion)
-			return true;
+		/*if (this.name=="katnip-components") {
+			console.log("checking installed: "+this.versionSpec+" res: "+this.resolvedVersion+" current: "+pkg.__installedVersion);
+		}*/
 
-		return false;
+		if (pkg.__installedVersion!=this.resolvedVersion)
+			return false;
+
+		for (let dep of this.dependencies)
+			if (!await dep.isInstalled())
+				return false;
+
+		return true;
 	}
 }

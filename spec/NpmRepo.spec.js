@@ -228,4 +228,35 @@ describe("NpmRepo",()=>{
 		let dependencies2=await npmRepo.getVersionDependencies("katnip","3.0.28");
 		expect(dependencies2.dummydep).toEqual("^1.2.3");
 	});
+
+	it("can bypass the cas",async ()=>{
+		let casDir=path.join(__dirname,"/../tmp/cas-bypass");
+		await fs.promises.rm(casDir,{recursive: true, force: true});
+		await fs.promises.cp(
+			path.join(__dirname,"data/NpmRepo-cas"),
+			casDir,
+			{recursive: true}
+		);
+
+		let installTo=path.join(__dirname,"/../tmp/cas-bypass-install");
+		await fs.promises.rm(installTo,{recursive: true, force: true});
+
+		let npmRepo=new NpmRepo({
+			fetch: createDebugFetch(),
+			casDir: casDir,
+			casOverride: ["katnip"],
+			fs
+		});
+
+		let packageUrl="file://"+path.join(__dirname,"data/NpmRepo-tar/katnip-3.0.25.tgz");
+		let deps=await npmRepo.getVersionDependencies("katnip",packageUrl);
+
+		await npmRepo.install(
+			"katnip",
+			packageUrl,
+			path.join(installTo,"node_modules/katnip")
+		);
+
+		expect(fs.existsSync(path.join(casDir,npmRepo.serializePackageSpec("katnip",packageUrl)))).toEqual(false);
+	});
 });

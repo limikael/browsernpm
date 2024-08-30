@@ -7,7 +7,7 @@ import {extractTar, fetchTarReader, tarReaderMatch} from "../utils/tar-util.js";
 import {ResolvablePromise, isValidUrl, splitPath} from "../utils/js-util.js";
 
 export default class NpmRepo {
-	constructor({registryUrl, fetch, infoDir, fs, casDir, writeBlob}={}) {
+	constructor({registryUrl, fetch, infoDir, fs, casDir, writeBlob, casOverride}={}) {
 		this.registryUrl=registryUrl;
 		this.fetch=fetch;
 		this.infoDir=infoDir;
@@ -17,6 +17,10 @@ export default class NpmRepo {
 		this.casPackageJsonPromises={};
 		this.tarReaderPromises={};
 		this.writeBlob=writeBlob;
+		this.casOverride=casOverride;
+
+		if (!this.casOverride)
+			this.casOverride=[];
 
 		if (!this.fs)
 			throw new Error("NpmRepo need fs");
@@ -82,6 +86,9 @@ export default class NpmRepo {
 	}
 
 	async _getSatisfyingCasVersion(packageName, versionSpec) {
+		if (this.casOverride.includes(packageName))
+			return;
+
 		let casVersions=await this.getCasVersions(packageName);
 		let casVer=semver.maxSatisfying(casVersions,versionSpec);
 		if (casVer)
@@ -151,7 +158,8 @@ export default class NpmRepo {
 
 		// Get via cas.
 		let casKeys=await this.getCasKeys();
-		if (casKeys) {
+		if (casKeys &&
+				!this.casOverride.includes(packageName)) {
 			let casKey=this.serializePackageSpec(packageName,version);
 			if (casKeys.includes(casKey)) {
 				//console.log("getting from cas: "+casKey);
@@ -236,6 +244,7 @@ export default class NpmRepo {
 	}
 
 	async downloadPackage(packageName, version, target) {
+		//console.log("**** downloading "+packageName+" ver: "+version);
 		let tarReader;
 		if (isValidUrl(version)) {
 			if (this.tarReaderPromises[version])
@@ -256,6 +265,9 @@ export default class NpmRepo {
 			tarReader=await fetchTarReader(tarballUrl,{fetch: this.fetch});
 		}
 
+		if (await exists(target,{fs:this.fs}))
+			await this.fs.promises.rm(target,{recursive: true});
+
 		await extractTar({
 			tarReader: tarReader,
 			archiveRoot: this.getNpmTarArchiveRoot(tarReader),
@@ -273,8 +285,11 @@ export default class NpmRepo {
 	}
 
 	async install(packageName, version, target) {
+		//console.log("install: "+packageName+"@"+version+" -> "+target);
+
 		let casKeys=await this.getCasKeys();
-		if (casKeys) {
+		if (casKeys &&
+				!this.casOverride.includes(packageName)) {
 			let casKey=this.serializePackageSpec(packageName,version);
 			let casPackagePath=path.join(this.casDir,casKey);
 
@@ -299,9 +314,10 @@ export default class NpmRepo {
 			if (this.casDownloadPromises[casKey])
 				await this.casDownloadPromises[casKey];
 
+			if (await exists(target,{fs:this.fs}))
+				await this.fs.promises.rm(target,{recursive: true});
+
 			// Install from CAS
-			//await this.fs.promises.mkdir(path.dirname(target),{recursive: true});
-			//await this.fs.promises.rm(target,{recursive: true, force: true});
 			await linkRecursive(casPackagePath,target,{fs:this.fs});
 		}
 
