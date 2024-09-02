@@ -64,8 +64,14 @@ export default class NpmInstaller {
 				&& !this.full
 				&& !Object.keys(this.override).length
 				&& !await projectNeedInstall(this.cwd,{fs: this.fs, ignore: this.ignore})) {
+			let res={success: true, quick: true, warnings: []};
+
+			// will not work.
+			/*if (this.clean)
+				res.removed=await this.cleanUp();*/
+
 			//console.log("returning.....");
-			return {success: true, quick: true, warnings: []};
+			return res;
 		}
 
 		if (!await exists(path.dirname(incompleteFile),{fs:this.fs}))
