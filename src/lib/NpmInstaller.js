@@ -286,10 +286,15 @@ export default class NpmInstaller {
 	getSatisfiesCount(name, version) {
 		let count=0;
 
-		for (let dep of this.getAllDependencies())
-			if (dep.name==name &&
-					semverNiceSatisfies(version,dep.versionSpec))
-				count++;
+		for (let dep of this.getAllDependencies()) {
+			if (dep.name==name) {
+				if (semverNiceSatisfies(version,dep.versionSpec))
+					count++;
+
+				if (dep.versionSpec=="latest")
+					count++;
+			}
+		}
 
 		if (!count)
 			throw new Error("count is 0 for: "+name+" "+version);

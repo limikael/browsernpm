@@ -5,6 +5,7 @@ import path from "path-browserify";
 import {exists, linkRecursive} from "../utils/fs-util.js";
 import {extractTar, fetchTarReader, tarReaderMatch} from "../utils/tar-util.js";
 import {ResolvablePromise, isValidUrl, splitPath} from "../utils/js-util.js";
+import {semverNiceMax} from "../utils/npm-util.js";
 
 export default class NpmRepo {
 	constructor({registryUrl, fetch, infoDir, fs, casDir, writeBlob, casOverride}={}) {
@@ -113,6 +114,11 @@ export default class NpmRepo {
 		throw new Error("Not satisfiable: "+packageName+" "+versionSpec);
 	}
 
+	async _getLatestInfoVersion(packageName) {
+		let packageInfo=await this.infoCache.get(packageName);
+		return semverNiceMax(Object.keys(packageInfo.versions));
+	}
+
 	async getSatisfyingVersion(packageName, versionSpec) {
 		if (semver.validRange(versionSpec)) {
 			let casVer=await this._getSatisfyingCasVersion(packageName,versionSpec);
@@ -121,6 +127,9 @@ export default class NpmRepo {
 
 			return await this._getSatisfyingInfoVersion(packageName,versionSpec);
 		}
+
+		if (versionSpec=="latest")
+			return await this._getLatestInfoVersion(packageName);
 
 		if (!isValidUrl(versionSpec))
 			throw new Error("Version spec is not semver range or url: "+versionSpec);
@@ -153,6 +162,14 @@ export default class NpmRepo {
 		return path.dirname(match);
 	}
 
+	async isLocalDirectory(url) {
+		let u=new URL(url);
+		if (u.protocol=="file:") {
+			let stat=await this.fs.promises.stat(u.pathname);
+			return stat.isDirectory();
+		}
+	}
+
 	async getVersionDependencies(packageName, version) {
 		let pkg;
 
@@ -168,12 +185,19 @@ export default class NpmRepo {
 		}
 
 		if (!pkg && isValidUrl(version)) {
-			//let u=new URL(version);
-			//console.log(u.protocol+" "+version);
+			if (await this.isLocalDirectory(version)) {
+				let u=new URL(version);
+				let pkgJonPath=path.join(u.pathname,"package.json");
+				let pkgJson=await this.fs.promises.readFile(pkgJonPath)
+				pkg=JSON.parse(pkgJson);
 
-			let tarReader=await this.getTarReader(version);
-			let archiveRoot=this.getNpmTarArchiveRoot(tarReader);
-			pkg=JSON.parse(tarReader.getTextFile(path.join(archiveRoot,"package.json")));
+			}
+
+			else {
+				let tarReader=await this.getTarReader(version);
+				let archiveRoot=this.getNpmTarArchiveRoot(tarReader);
+				pkg=JSON.parse(tarReader.getTextFile(path.join(archiveRoot,"package.json")));
+			}
 		}
 
 		// Get via info.
@@ -243,15 +267,47 @@ export default class NpmRepo {
 		return data;
 	}
 
+	async tagInstalledPackage(target, version) {
+		let pkgPath=path.join(target,"package.json");
+		let pkgText=await this.fs.promises.readFile(pkgPath,"utf8");
+		let pkg=JSON.parse(pkgText);
+
+		pkg.__installedVersion=version;
+		await this.fs.promises.writeFile(pkgPath,JSON.stringify(pkg,null,2));
+	}
+
 	async downloadPackage(packageName, version, target) {
 		//console.log("**** downloading "+packageName+" ver: "+version);
 		let tarReader;
 		if (isValidUrl(version)) {
-			if (this.tarReaderPromises[version])
-				tarReader=await this.tarReaderPromises[version];
+			if (await this.isLocalDirectory(version)) {
+				if (await exists(target,{fs:this.fs}))
+					await this.fs.promises.rm(target,{recursive: true});
+
+				await this.fs.promises.mkdir(target,{recursive: true});
+
+				let u=new URL(version);
+				for (let fn of await this.fs.promises.readdir(u.pathname)) {
+					if (!["node_modules"].includes(fn)) {
+						await this.fs.promises.cp(
+							path.join(u.pathname,fn),
+							path.join(target,fn),
+							{recursive: true}
+						);
+					}
+				}
+
+				await this.tagInstalledPackage(target,version);
+				return;
+			}
 
 			else {
-				tarReader=await fetchTarReader(version,{fetch: this.fetch});
+				if (this.tarReaderPromises[version])
+					tarReader=await this.tarReaderPromises[version];
+
+				else {
+					tarReader=await fetchTarReader(version,{fetch: this.fetch});
+				}
 			}
 		}
 
@@ -276,12 +332,7 @@ export default class NpmRepo {
 			writeBlob: this.writeBlob
 		});
 
-		let pkgPath=path.join(target,"package.json");
-		let pkgText=await this.fs.promises.readFile(pkgPath,"utf8");
-		let pkg=JSON.parse(pkgText);
-
-		pkg.__installedVersion=version;
-		await this.fs.promises.writeFile(pkgPath,JSON.stringify(pkg,null,2));
+		await this.tagInstalledPackage(target,version);
 	}
 
 	async install(packageName, version, target) {

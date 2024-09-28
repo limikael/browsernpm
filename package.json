@@ -1,8 +1,11 @@
 {
   "name": "browsernpm",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "browsernpm": "./src/cli/browsernpm-cli.js"
+  },
   "scripts": {
     "test": "jasmine",
     "integration-test": "jasmine --config=spec/support/integration.json",
@@ -13,7 +16,8 @@
     "minimatch": "^9.0.4",
     "path-browserify": "^1.0.1",
     "semver": "^7.6.0",
-    "url-join": "^5.0.0"
+    "url-join": "^5.0.0",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "jasmine": "^5.1.0"

@@ -6,6 +6,7 @@ export async function fetchTarReader(tarUrl, {fetch}={}) {
 	if (!fetch)
 		fetch=globalThis.fetch.bind(globalThis);
 
+	//console.log("tarUrl: "+tarUrl);
 	let response=await fetch(tarUrl);
 	let pipe=response.body.pipeThrough(new DecompressionStream("gzip"));
 	let blob=await new Response(pipe).blob();

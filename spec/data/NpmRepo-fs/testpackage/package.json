@@ -1,0 +1,8 @@
+{
+	"name": "testpackage",
+	"version": "1.0.0",
+	"dependencies": {
+		"bla": "1.2.3",
+		"blu": "3.4.5"
+	}
+}

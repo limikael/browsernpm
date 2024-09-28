@@ -2,3 +2,4 @@
 tmp
 attic
 !spec/data/npm-util/testpackage/**/node_modules
+!spec/data/NpmRepo-fs/testpackage/node_modules
