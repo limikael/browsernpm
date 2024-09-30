@@ -1,10 +1,10 @@
 {
   "name": "browsernpm",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "browsernpm": "./src/cli/browsernpm-cli.js"
+    "browsernpm": "src/cli/browsernpm-cli.js"
   },
   "scripts": {
     "test": "jasmine",
