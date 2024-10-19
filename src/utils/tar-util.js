@@ -2,13 +2,28 @@ import {TarReader, TarFileType} from '@gera2ld/tarjs';
 import {minimatch} from "minimatch";
 import path from "path-browserify";
 
-export async function fetchTarReader(tarUrl, {fetch}={}) {
+export async function fetchTarReader(tarUrl, {fetch, onProgress}={}) {
 	if (!fetch)
 		fetch=globalThis.fetch.bind(globalThis);
 
-	//console.log("tarUrl: "+tarUrl);
+	//console.log("fetching tarUrl: "+tarUrl);
 	let response=await fetch(tarUrl);
-	let pipe=response.body.pipeThrough(new DecompressionStream("gzip"));
+	let contentLength=Number(response.headers.get("content-length"));
+	let progressTotal=0;
+	var progress=new TransformStream({
+		transform(chunk, controller) {
+			progressTotal+=chunk.length;
+			if (contentLength && !isNaN(contentLength)) {
+				let percent=Math.round(100*progressTotal/contentLength);
+				if (onProgress)
+					onProgress(percent);
+			}
+
+			controller.enqueue(chunk);
+		}
+	});
+
+	let pipe=response.body.pipeThrough(progress).pipeThrough(new DecompressionStream("gzip"));
 	let blob=await new Response(pipe).blob();
 	return await TarReader.load(blob);
 }
@@ -20,14 +35,23 @@ export function tarReaderMatch(tarReader, pattern) {
 	}
 }
 
-export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob, fetch, url, throttle}={}) {
-	if (url)
-		tarReader=await fetchTarReader(url,{fetch});
+export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob, 
+		fetch, url, throttle, onProgress}={}) {
+	if (url) {
+		tarReader=await fetchTarReader(url,{fetch, onProgress: percent=>{
+			if (onProgress)
+				onProgress("download", percent);
+		}});
+	}
 
 	if (!archiveRoot)
 		archiveRoot="";
 
-	let count=0;
+	if (onProgress)
+		onProgress("extract",0);
+
+	let count=0, index=0;
+	let reportedPercent=0;
 	for (let fileInfo of tarReader.fileInfos) {
 		let relFn=path.relative(path.join("/",archiveRoot),path.join("/",fileInfo.name));
 		if (relFn && !relFn.startsWith("..") && fileInfo.type!=TarFileType.Dir) {
@@ -52,5 +76,13 @@ export async function extractTar({tarReader, target, fs, archiveRoot, writeBlob,
 			if (throttle && !(count%throttle))
 				await new Promise(r=>setTimeout(r,0));
 		}
+
+		index++;
+		let percent=Math.round(100*index/tarReader.fileInfos.length);
+		if (percent!=reportedPercent && onProgress)
+		if (onProgress)
+			onProgress("extract",percent);
+
+		reportedPercent=percent;
 	}
 }
